@@ -973,8 +973,10 @@ TipTheScales.cooldown_duration = 120
 local BoonOfTheCovenants = Ability:Add(387168, true, true)
 BoonOfTheCovenants.cooldown_duration = 120
 BoonOfTheCovenants.buff_duration = 12
+BoonOfTheCovenants.check_usable = true
 local SummonSteward = Ability:Add(324739, false, true) -- Kyrian
 SummonSteward.cooldown_duration = 300
+SummonSteward.check_usable = true
 -- Soulbind conduits
 
 -- Legendary effects
@@ -1170,9 +1172,6 @@ function Player:UpdateAbilities()
 				break
 			end
 		end
-		if C_LevelLink.IsSpellLocked(ability.spellId) then
-			ability.known = false -- spell is locked, do not mark as known
-		end
 		if ability.bonus_id then -- used for checking enchants and Legendary crafted effects
 			ability.known = self:BonusIdEquipped(ability.bonus_id)
 		end
@@ -1189,6 +1188,9 @@ function Player:UpdateAbilities()
 					end
 				end
 			end
+		end
+		if C_LevelLink.IsSpellLocked(ability.spellId) or (ability.check_usable and not IsUsableSpell(ability.spellId)) then
+			ability.known = false -- spell is locked, do not mark as known
 		end
 	end
 
@@ -1403,6 +1405,10 @@ function Pyre:EssenceCost()
 		cost = cost - 1
 	end
 	return max(0, cost)
+end
+
+function LivingFlame:Free()
+	return Burnout:Up()
 end
 
 -- End Ability Modifications
@@ -1924,7 +1930,7 @@ function UI:UpdateCombat()
 	Player.main = APL[Player.spec]:Main()
 	if Player.main then
 		badDragonPanel.icon:SetTexture(Player.main.icon)
-		Player.main_freecast = (Player.main.mana_cost > 0 and Player.main:ManaCost() == 0) or (Player.main.essence_cost > 0 and Player.main:EssenceCost() == 0)
+		Player.main_freecast = (Player.main.mana_cost > 0 and Player.main:ManaCost() == 0) or (Player.main.essence_cost > 0 and Player.main:EssenceCost() == 0) or (Player.main.Free and Player.main:Free())
 	end
 	if Player.cd then
 		badDragonCooldownPanel.icon:SetTexture(Player.cd.icon)
