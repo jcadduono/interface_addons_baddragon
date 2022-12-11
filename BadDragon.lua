@@ -197,6 +197,10 @@ badDragonPanel:SetPoint('CENTER', 0, -169)
 badDragonPanel:SetFrameStrata('BACKGROUND')
 badDragonPanel:SetSize(64, 64)
 badDragonPanel:SetMovable(true)
+badDragonPanel:SetUserPlaced(true)
+badDragonPanel:RegisterForDrag('LeftButton')
+badDragonPanel:SetScript('OnDragStart', badDragonPanel.StartMoving)
+badDragonPanel:SetScript('OnDragStop', badDragonPanel.StopMovingOrSizing)
 badDragonPanel:Hide()
 badDragonPanel.icon = badDragonPanel:CreateTexture(nil, 'BACKGROUND')
 badDragonPanel.icon:SetAllPoints(badDragonPanel)
@@ -242,11 +246,12 @@ badDragonPanel.button:RegisterForClicks('LeftButtonDown', 'RightButtonDown', 'Mi
 local badDragonPreviousPanel = CreateFrame('Frame', 'badDragonPreviousPanel', UIParent)
 badDragonPreviousPanel:SetFrameStrata('BACKGROUND')
 badDragonPreviousPanel:SetSize(64, 64)
-badDragonPreviousPanel:Hide()
+badDragonPreviousPanel:SetMovable(true)
+badDragonPreviousPanel:SetUserPlaced(true)
 badDragonPreviousPanel:RegisterForDrag('LeftButton')
 badDragonPreviousPanel:SetScript('OnDragStart', badDragonPreviousPanel.StartMoving)
 badDragonPreviousPanel:SetScript('OnDragStop', badDragonPreviousPanel.StopMovingOrSizing)
-badDragonPreviousPanel:SetMovable(true)
+badDragonPreviousPanel:Hide()
 badDragonPreviousPanel.icon = badDragonPreviousPanel:CreateTexture(nil, 'BACKGROUND')
 badDragonPreviousPanel.icon:SetAllPoints(badDragonPreviousPanel)
 badDragonPreviousPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -254,13 +259,14 @@ badDragonPreviousPanel.border = badDragonPreviousPanel:CreateTexture(nil, 'ARTWO
 badDragonPreviousPanel.border:SetAllPoints(badDragonPreviousPanel)
 badDragonPreviousPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
 local badDragonCooldownPanel = CreateFrame('Frame', 'badDragonCooldownPanel', UIParent)
-badDragonCooldownPanel:SetSize(64, 64)
 badDragonCooldownPanel:SetFrameStrata('BACKGROUND')
-badDragonCooldownPanel:Hide()
+badDragonCooldownPanel:SetSize(64, 64)
+badDragonCooldownPanel:SetMovable(true)
+badDragonCooldownPanel:SetUserPlaced(true)
 badDragonCooldownPanel:RegisterForDrag('LeftButton')
 badDragonCooldownPanel:SetScript('OnDragStart', badDragonCooldownPanel.StartMoving)
 badDragonCooldownPanel:SetScript('OnDragStop', badDragonCooldownPanel.StopMovingOrSizing)
-badDragonCooldownPanel:SetMovable(true)
+badDragonCooldownPanel:Hide()
 badDragonCooldownPanel.icon = badDragonCooldownPanel:CreateTexture(nil, 'BACKGROUND')
 badDragonCooldownPanel.icon:SetAllPoints(badDragonCooldownPanel)
 badDragonCooldownPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -283,11 +289,12 @@ badDragonCooldownPanel.text:SetJustifyV('CENTER')
 local badDragonInterruptPanel = CreateFrame('Frame', 'badDragonInterruptPanel', UIParent)
 badDragonInterruptPanel:SetFrameStrata('BACKGROUND')
 badDragonInterruptPanel:SetSize(64, 64)
-badDragonInterruptPanel:Hide()
+badDragonInterruptPanel:SetMovable(true)
+badDragonInterruptPanel:SetUserPlaced(true)
 badDragonInterruptPanel:RegisterForDrag('LeftButton')
 badDragonInterruptPanel:SetScript('OnDragStart', badDragonInterruptPanel.StartMoving)
 badDragonInterruptPanel:SetScript('OnDragStop', badDragonInterruptPanel.StopMovingOrSizing)
-badDragonInterruptPanel:SetMovable(true)
+badDragonInterruptPanel:Hide()
 badDragonInterruptPanel.icon = badDragonInterruptPanel:CreateTexture(nil, 'BACKGROUND')
 badDragonInterruptPanel.icon:SetAllPoints(badDragonInterruptPanel)
 badDragonInterruptPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -301,11 +308,12 @@ badDragonInterruptPanel.swipe:SetDrawEdge(false)
 local badDragonExtraPanel = CreateFrame('Frame', 'badDragonExtraPanel', UIParent)
 badDragonExtraPanel:SetFrameStrata('BACKGROUND')
 badDragonExtraPanel:SetSize(64, 64)
-badDragonExtraPanel:Hide()
+badDragonExtraPanel:SetMovable(true)
+badDragonExtraPanel:SetUserPlaced(true)
 badDragonExtraPanel:RegisterForDrag('LeftButton')
 badDragonExtraPanel:SetScript('OnDragStart', badDragonExtraPanel.StartMoving)
 badDragonExtraPanel:SetScript('OnDragStop', badDragonExtraPanel.StopMovingOrSizing)
-badDragonExtraPanel:SetMovable(true)
+badDragonExtraPanel:Hide()
 badDragonExtraPanel.icon = badDragonExtraPanel:CreateTexture(nil, 'BACKGROUND')
 badDragonExtraPanel.icon:SetAllPoints(badDragonExtraPanel)
 badDragonExtraPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -478,7 +486,6 @@ function Ability:Add(spellId, buff, player, spellId2)
 		hasted_cooldown = false,
 		hasted_ticks = false,
 		known = false,
-		rank = 0,
 		mana_cost = 0,
 		essence_cost = 0,
 		cooldown_duration = 0,
@@ -969,18 +976,6 @@ ShatteringStar.triggers_combat = true
 ShatteringStar:AutoAoe()
 local TipTheScales = Ability:Add(370553, true, true)
 TipTheScales.cooldown_duration = 120
--- Covenant abilities
-local BoonOfTheCovenants = Ability:Add(387168, true, true)
-BoonOfTheCovenants.cooldown_duration = 120
-BoonOfTheCovenants.buff_duration = 12
-BoonOfTheCovenants.check_usable = true
-local SummonSteward = Ability:Add(324739, false, true) -- Kyrian
-SummonSteward.cooldown_duration = 300
-SummonSteward.check_usable = true
--- Soulbind conduits
-
--- Legendary effects
-
 -- Racials
 
 -- PvP talents
@@ -1059,8 +1054,6 @@ local EternalAugmentRune = InventoryItem:Add(190384)
 EternalAugmentRune.buff = Ability:Add(367405, true, true)
 local EternalFlask = InventoryItem:Add(171280)
 EternalFlask.buff = Ability:Add(307166, true, true)
-local PhialOfSerenity = InventoryItem:Add(177278) -- Provided by Summon Steward
-PhialOfSerenity.max_charges = 3
 local PotionOfPhantomFire = InventoryItem:Add(171349)
 PotionOfPhantomFire.buff = Ability:Add(307495, true, true)
 local PotionOfSpectralIntellect = InventoryItem:Add(171273)
@@ -1070,8 +1063,6 @@ SpectralFlaskOfPower.buff = Ability:Add(307185, true, true)
 -- Equipment
 local Trinket1 = InventoryItem:Add(0)
 local Trinket2 = InventoryItem:Add(0)
-Trinket.SoleahsSecretTechnique = InventoryItem:Add(190958)
-Trinket.SoleahsSecretTechnique.buff = Ability:Add(368512, true, true)
 -- End Inventory Items
 
 -- Start Player API
@@ -1107,10 +1098,7 @@ function Player:BloodlustActive()
 			id == 90355 or  -- Ancient Hysteria (Hunter Pet - Core Hound)
 			id == 160452 or -- Netherwinds (Hunter Pet - Nether Ray)
 			id == 264667 or -- Primal Rage (Hunter Pet - Ferocity)
-			id == 178207 or -- Drums of Fury (Leatherworking)
-			id == 146555 or -- Drums of Rage (Leatherworking)
-			id == 230935 or -- Drums of the Mountain (Leatherworking)
-			id == 256740 or -- Drums of the Maelstrom (Leatherworking)
+			id == 381301 or -- Feral Hide Drums (Leatherworking)
 			id == 390386    -- Fury of the Aspects (Evoker)
 		) then
 			return true
@@ -1158,7 +1146,6 @@ function Player:UpdateTime(timeStamp)
 end
 
 function Player:UpdateAbilities()
-	self.rescan_abilities = false
 	self.mana.max = UnitPowerMax('player', 0)
 	self.essence.max = UnitPowerMax('player', 19)
 
@@ -1172,22 +1159,8 @@ function Player:UpdateAbilities()
 				break
 			end
 		end
-		if ability.bonus_id then -- used for checking enchants and Legendary crafted effects
+		if ability.bonus_id then -- used for checking enchants and crafted effects
 			ability.known = self:BonusIdEquipped(ability.bonus_id)
-		end
-		if ability.conduit_id then
-			node = C_Soulbinds.FindNodeIDActuallyInstalled(C_Soulbinds.GetActiveSoulbindID(), ability.conduit_id)
-			if node then
-				node = C_Soulbinds.GetNode(node)
-				if node then
-					if node.conduitID == 0 then
-						self.rescan_abilities = true -- rescan on next target, conduit data has not finished loading
-					else
-						ability.known = node.state == 3
-						ability.rank = node.conduitRank
-					end
-				end
-			end
 		end
 		if C_LevelLink.IsSpellLocked(ability.spellId) or (ability.check_usable and not IsUsableSpell(ability.spellId)) then
 			ability.known = false -- spell is locked, do not mark as known
@@ -1452,12 +1425,6 @@ actions.precombat+=/variable,name=trinket_2_sync,op=setif,value=1,value_else=0.5
 # Estimates a trinkets value by comparing the cooldown of the trinket, divided by the duration of the buff it provides. Has a intellect modifier (currently 1.5x) to give a higher priority to intellect trinkets. The intellect modifier should be changed as intellect priority increases or decreases. As well as a modifier for if a trinket will or will not sync with cooldowns.
 actions.precombat+=/variable,name=trinket_priority,op=setif,value=2,value_else=1,condition=!trinket.1.has_use_buff&trinket.2.has_use_buff|trinket.2.has_use_buff&((trinket.2.cooldown.duration%trinket.2.proc.any_dps.duration)*(1.5+trinket.2.has_buff.intellect)*(variable.trinket_2_sync))>((trinket.1.cooldown.duration%trinket.1.proc.any_dps.duration)*(1.5+trinket.1.has_buff.intellect)*(variable.trinket_1_sync))
 ]]
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 300 and Player.group_size > 1 then
-			UseCooldown(Trinket.SoleahsSecretTechnique)
-		end
-		if SummonSteward:Usable() and PhialOfSerenity:Charges() < 1 then
-			UseCooldown(SummonSteward)
-		end
 		if not Player:InArenaOrBattleground() then
 			if EternalAugmentRune:Usable() and EternalAugmentRune.buff:Remains() < 300 then
 				UseCooldown(EternalAugmentRune)
@@ -1481,9 +1448,6 @@ actions.precombat+=/variable,name=trinket_priority,op=setif,value=2,value_else=1
 	else
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 10 then
 			UseExtra(BlessingOfTheBronze)
-		end
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 10 and Player.group_size > 1 then
-			UseExtra(Trinket.SoleahsSecretTechnique)
 		end
 	end
 --[[
@@ -1518,9 +1482,6 @@ actions+=/living_flame
 	end
 	if Dragonrage:Usable() and Dragonrage:Down() and EternitySurge:Ready(Dragonrage:Duration() + 6) and (not FeedTheFlames.known or FireBreath:Ready(2 * Player.gcd)) then
 		UseCooldown(Dragonrage)
-	end
-	if BoonOfTheCovenants:Usable() and Dragonrage:Up() then
-		UseCooldown(BoonOfTheCovenants)
 	end
 	if TipTheScales:Usable() and Dragonrage:Up() and ((Player.enemies > 4 and EternitySurge:Ready()) or ((EternitySurge:Ready() or FireBreath:Ready()) and Dragonrage:Remains() < (Player.gcd * 2))) then
 		UseCooldown(TipTheScales)
@@ -1599,12 +1560,6 @@ end
 
 APL[SPEC.PRESERVATION].Main = function(self)
 	if Player:TimeInCombat() == 0 then
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 300 and Player.group_size > 1 then
-			UseCooldown(Trinket.SoleahsSecretTechnique)
-		end
-		if SummonSteward:Usable() and PhialOfSerenity:Charges() < 1 then
-			UseCooldown(SummonSteward)
-		end
 		if not Player:InArenaOrBattleground() then
 			if EternalAugmentRune:Usable() and EternalAugmentRune.buff:Remains() < 300 then
 				UseCooldown(EternalAugmentRune)
@@ -1622,9 +1577,6 @@ APL[SPEC.PRESERVATION].Main = function(self)
 	else
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 10 then
 			UseExtra(BlessingOfTheBronze)
-		end
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 10 and Player.group_size > 1 then
-			UseExtra(Trinket.SoleahsSecretTechnique)
 		end
 	end
 end
@@ -1747,27 +1699,13 @@ function UI:UpdateGlows()
 end
 
 function UI:UpdateDraggable()
-	badDragonPanel:EnableMouse(Opt.aoe or not Opt.locked)
+	local draggable = not (Opt.locked or Opt.snap or Opt.aoe)
+	badDragonPanel:EnableMouse(draggable or Opt.aoe)
 	badDragonPanel.button:SetShown(Opt.aoe)
-	if Opt.locked then
-		badDragonPanel:SetScript('OnDragStart', nil)
-		badDragonPanel:SetScript('OnDragStop', nil)
-		badDragonPanel:RegisterForDrag('')
-		badDragonPreviousPanel:EnableMouse(false)
-		badDragonCooldownPanel:EnableMouse(false)
-		badDragonInterruptPanel:EnableMouse(false)
-		badDragonExtraPanel:EnableMouse(false)
-	else
-		if not Opt.aoe then
-			badDragonPanel:SetScript('OnDragStart', badDragonPanel.StartMoving)
-			badDragonPanel:SetScript('OnDragStop', badDragonPanel.StopMovingOrSizing)
-			badDragonPanel:RegisterForDrag('LeftButton')
-		end
-		badDragonPreviousPanel:EnableMouse(true)
-		badDragonCooldownPanel:EnableMouse(true)
-		badDragonInterruptPanel:EnableMouse(true)
-		badDragonExtraPanel:EnableMouse(true)
-	end
+	badDragonPreviousPanel:EnableMouse(draggable)
+	badDragonCooldownPanel:EnableMouse(draggable)
+	badDragonInterruptPanel:EnableMouse(draggable)
+	badDragonExtraPanel:EnableMouse(draggable)
 end
 
 function UI:UpdateAlpha()
@@ -1987,18 +1925,19 @@ end
 function events:ADDON_LOADED(name)
 	if name == ADDON then
 		Opt = BadDragon
-		if not Opt.frequency then
-			print('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
-			print('Type |cFFFFD000' .. SLASH_BadDragon1 .. '|r for a list of commands.')
-		end
-		if UnitLevel('player') < 10 then
-			print('[|cFFFFD000Warning|r] ' .. ADDON .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
-		end
+		local firstRun = not Opt.frequency
 		InitOpts()
 		UI:UpdateDraggable()
 		UI:UpdateAlpha()
 		UI:UpdateScale()
-		UI:SnapAllPanels()
+		if firstRun then
+			print('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
+			print('Type |cFFFFD000' .. SLASH_BadDragon1 .. '|r for a list of commands.')
+			UI:SnapAllPanels()
+		end
+		if UnitLevel('player') < 10 then
+			print('[|cFFFFD000Warning|r] ' .. ADDON .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
+		end
 	end
 end
 
@@ -2114,9 +2053,6 @@ end
 
 function events:PLAYER_TARGET_CHANGED()
 	Target:Update()
-	if Player.rescan_abilities then
-		Player:UpdateAbilities()
-	end
 end
 
 function events:UNIT_FACTION(unitId)
@@ -2248,6 +2184,7 @@ function events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	Player:SetTargetMode(1)
 	events:PLAYER_EQUIPMENT_CHANGED()
 	events:PLAYER_REGEN_ENABLED()
+	events:UNIT_HEALTH('player')
 	UI.OnResourceFrameShow()
 	Player:Update()
 end
@@ -2267,18 +2204,6 @@ function events:SPELL_UPDATE_COOLDOWN()
 end
 
 function events:PLAYER_PVP_TALENT_UPDATE()
-	Player:UpdateAbilities()
-end
-
-function events:SOULBIND_ACTIVATED()
-	Player:UpdateAbilities()
-end
-
-function events:SOULBIND_NODE_UPDATED()
-	Player:UpdateAbilities()
-end
-
-function events:SOULBIND_PATH_CHANGED()
 	Player:UpdateAbilities()
 end
 
@@ -2366,18 +2291,25 @@ SlashCmdList[ADDON] = function(msg, editbox)
 			Opt.locked = msg[2] == 'on'
 			UI:UpdateDraggable()
 		end
+		if Opt.aoe or Opt.snap then
+			Status('Warning', 'Panels cannot be moved when aoe or snap are enabled!')
+		end
 		return Status('Locked', Opt.locked)
 	end
 	if startsWith(msg[1], 'snap') then
 		if msg[2] then
 			if msg[2] == 'above' or msg[2] == 'over' then
 				Opt.snap = 'above'
+				Opt.locked = true
 			elseif msg[2] == 'below' or msg[2] == 'under' then
 				Opt.snap = 'below'
+				Opt.locked = true
 			else
 				Opt.snap = false
+				Opt.locked = false
 				badDragonPanel:ClearAllPoints()
 			end
+			UI:UpdateDraggable()
 			UI.OnResourceFrameShow()
 		end
 		return Status('Snap to the Personal Resource Display frame', Opt.snap)
