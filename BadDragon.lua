@@ -171,6 +171,9 @@ local Player = {
 	swing = {
 		last_taken = 0,
 	},
+	set_bonus = {
+		t29 = 0,
+	},
 	previous_gcd = {},-- list of previous GCD abilities
 	item_use_blacklist = { -- list of item IDs with on-use effects we should mark unusable
 	},
@@ -1150,8 +1153,10 @@ function Player:UpdateAbilities()
 	self.essence.max = UnitPowerMax('player', 19)
 
 	local node
+	local configId = C_ClassTalents.GetActiveConfigID()
 	for _, ability in next, abilities.all do
 		ability.known = false
+		ability.rank = 0
 		for _, spellId in next, ability.spellIds do
 			ability.spellId, ability.name, _, ability.icon = spellId, GetSpellInfo(spellId)
 			if IsPlayerSpell(spellId) or (ability.learn_spellId and IsPlayerSpell(ability.learn_spellId)) then
@@ -1161,6 +1166,13 @@ function Player:UpdateAbilities()
 		end
 		if ability.bonus_id then -- used for checking enchants and crafted effects
 			ability.known = self:BonusIdEquipped(ability.bonus_id)
+		end
+		if ability.talent_node and configId then
+			node = C_Traits.GetNodeInfo(configId, ability.talent_node)
+			if node then
+				ability.rank = node.activeRank
+				ability.known = ability.rank > 0
+			end
 		end
 		if C_LevelLink.IsSpellLocked(ability.spellId) or (ability.check_usable and not IsUsableSpell(ability.spellId)) then
 			ability.known = false -- spell is locked, do not mark as known
@@ -2172,6 +2184,8 @@ function events:PLAYER_EQUIPMENT_CHANGED()
 		end
 	end
 
+	Player.set_bonus.t29 = (Player:Equipped(200378) and 1 or 0) + (Player:Equipped(200380) and 1 or 0) + (Player:Equipped(200381) and 1 or 0) + (Player:Equipped(200382) and 1 or 0) + (Player:Equipped(200383) and 1 or 0)
+
 	Player:UpdateAbilities()
 end
 
@@ -2187,6 +2201,10 @@ function events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	events:UNIT_HEALTH('player')
 	UI.OnResourceFrameShow()
 	Player:Update()
+end
+
+function events:TRAIT_CONFIG_UPDATED()
+	events:PLAYER_SPECIALIZATION_CHANGED('player')
 end
 
 function events:SPELL_UPDATE_COOLDOWN()
