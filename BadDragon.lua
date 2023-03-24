@@ -945,6 +945,10 @@ FireBreath.learn_spellId = 357208
 FireBreath:AutoAoe()
 FireBreath.dot = Ability:Add(357209, false, true)
 FireBreath.dot.buff_duration = 24
+local Hover = Ability:Add(358267, true, true)
+Hover.buff_duration = 6
+Hover.cooldown_duration = 35
+Hover.requires_charge = true
 local LivingFlame = Ability:Add(361469, false, true, 361500)
 LivingFlame.mana_cost = 2
 LivingFlame.max_range = 25
@@ -1507,15 +1511,18 @@ actions.precombat+=/living_flame,if=!talent.firestorm
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 300 then
 			return BlessingOfTheBronze
 		end
-		if Firestorm:Usable() then
+		if Firestorm:Usable() and Dragonrage:Down() then
 			return Firestorm
 		end
-		if LivingFlame:Usable() then
+		if LivingFlame:Usable() and Dragonrage:Down() then
 			return LivingFlame
 		end
 	else
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 10 then
 			UseExtra(BlessingOfTheBronze)
+		end
+		if Player.moving and Hover:Usable() and Hover:Down() then
+			UseExtra(Hover)
 		end
 	end
 --[[
@@ -1789,6 +1796,9 @@ APL[SPEC.PRESERVATION].Main = function(self)
 	else
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 10 then
 			UseExtra(BlessingOfTheBronze)
+		end
+		if Player.moving and Hover:Usable() and Hover:Down() then
+			UseExtra(Hover)
 		end
 	end
 end
