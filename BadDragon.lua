@@ -1453,6 +1453,13 @@ function LeapingFlames:Remains()
 	return Ability.Remains(self)
 end
 
+function TipTheScales:Cooldown()
+	if self:Up() then
+		return self:CooldownDuration()
+	end
+	return Ability.Cooldown(self)
+end
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -1576,7 +1583,7 @@ actions.aoe+=/azure_strike
 	if Dragonrage:Usable() and Dragonrage:Down() and FireBreath:Ready(Player.gcd) and EternitySurge:Ready(3 * Player.gcd) then
 		UseCooldown(Dragonrage)
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and (Player.enemies <= 6 or FireBreath:Ready()) then
+	if TipTheScales:Usable() and Dragonrage:Up() and (not FeedTheFlames.known or Dragonrage:Remains() < 8 or Target.timeToDie < 10) and (Player.enemies <= 6 or FireBreath:Ready()) then
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() then
@@ -1675,7 +1682,7 @@ actions.st+=/living_flame
 	if Dragonrage:Usable() and Dragonrage:Down() and ((FireBreath:Ready(Player.gcd) and EternitySurge:Ready(2 * Player.gcd)) or (Target.boss and Target.timeToDie < 30)) then
 		UseCooldown(Dragonrage)
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and ((FeedTheFlames.known and FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (Dragonrage:Remains() > FireBreath:Cooldown() or Dragonrage:Remains() > EternitySurge:Cooldown()))) then
+	if TipTheScales:Usable() and Dragonrage:Up() and (not FeedTheFlames.known or Dragonrage:Remains() < 8 or Target.timeToDie < 10) and ((FeedTheFlames.known and FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (Dragonrage:Remains() > FireBreath:Cooldown() or Dragonrage:Remains() > EternitySurge:Cooldown()))) then
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > 15 or not Animosity.known) then
