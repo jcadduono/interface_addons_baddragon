@@ -103,6 +103,7 @@ local function InitOpts()
 		cd_ttd = 8,
 		pot = false,
 		trinket = true,
+		heal_threshold = 60,
 	})
 end
 
@@ -937,6 +938,9 @@ Disintegrate.max_range = 25
 Disintegrate.hasted_ticks = true
 Disintegrate.hasted_duration = true
 Disintegrate.triggers_combat = true
+local EmeraldBlossom = Ability:Add(355913, true, true)
+EmeraldBlossom.mana_cost = 4.8
+EmeraldBlossom.cooldown_duration = 30
 local FireBreath = Ability:Add(382266, false, true)
 FireBreath.mana_cost = 2.6
 FireBreath.cooldown_duration = 30
@@ -966,6 +970,9 @@ Quell.buff_duration = 4
 Quell.max_range = 25
 local TipTheScales = Ability:Add(370553, true, true)
 TipTheScales.cooldown_duration = 120
+local VerdantEmbrace = Ability:Add(360995, true, true)
+VerdantEmbrace.mana_cost = 3
+VerdantEmbrace.cooldown_duration = 24
 ------ Procs
 
 ---- Devastation
@@ -1490,6 +1497,15 @@ local APL = {
 }
 
 APL[SPEC.DEVASTATION].Main = function(self)
+	if Player.health.pct < Opt.heal_threshold then
+		if EmeraldBlossom:Usable() then
+			UseExtra(EmeraldBlossom)
+		elseif VerdantEmbrace:Usable() then
+			UseExtra(VerdantEmbrace)
+		elseif Burnout.known and LivingFlame:Usable() and Burnout:Up() then
+			UseExtra(LivingFlame)
+		end
+	end
 	if Player:TimeInCombat() == 0 then
 --[[
 actions.precombat=flask
@@ -2800,6 +2816,12 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		end
 		return Status('Show on-use trinkets in cooldown UI', Opt.trinket)
 	end
+	if msg[1] == 'heal' then
+		if msg[2] then
+			Opt.heal_threshold = max(min(tonumber(msg[2]) or 60, 100), 0)
+		end
+		return Status('Health percentage threshold to recommend self healing spells', Opt.heal_threshold .. '%')
+	end
 	if msg[1] == 'reset' then
 		badDragonPanel:ClearAllPoints()
 		badDragonPanel:SetPoint('CENTER', 0, -169)
@@ -2830,6 +2852,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		'ttd |cFFFFD000[seconds]|r  - minimum enemy lifetime to use cooldowns on (default is 8 seconds, ignored on bosses)',
 		'pot |cFF00C000on|r/|cFFC00000off|r - show flasks and battle potions in cooldown UI',
 		'trinket |cFF00C000on|r/|cFFC00000off|r - show on-use trinkets in cooldown UI',
+		'heal |cFFFFD000[percent]|r - health percentage threshold to recommend self healing spells (default is 60%, 0 to disable)',
 		'|cFFFFD000reset|r - reset the location of the ' .. ADDON .. ' UI to default',
 	} do
 		print('  ' .. SLASH_BadDragon1 .. ' ' .. cmd)
