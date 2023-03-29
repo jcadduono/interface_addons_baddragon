@@ -1030,7 +1030,10 @@ Volatility.talent_node = 68647
 local EssenceBurst = Ability:Add(359565, true, true, 359618)
 EssenceBurst.buff_duration = 15
 -- Racials
-
+local TailSwipe = Ability:Add(368970, false, true)
+TailSwipe.cooldown_duration = 90
+local WingBuffet = Ability:Add(357214, false, true)
+WingBuffet.cooldown_duration = 90
 -- PvP talents
 
 -- Trinket Effects
@@ -1829,6 +1832,14 @@ end
 APL.Interrupt = function(self)
 	if Quell:Usable() then
 		return Quell
+	end
+	if Target.stunnable then
+		if TailSwipe:Usable() then
+			return TailSwipe
+		end
+		if WingBuffet:Usable() then
+			return WingBuffet
+		end
 	end
 end
 
