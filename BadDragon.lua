@@ -946,9 +946,9 @@ FireBreath.mana_cost = 2.6
 FireBreath.cooldown_duration = 30
 FireBreath.triggers_combat = true
 FireBreath.learn_spellId = 357208
-FireBreath:AutoAoe()
 FireBreath.dot = Ability:Add(357209, false, true)
 FireBreath.dot.buff_duration = 24
+FireBreath.dot:AutoAoe()
 local Hover = Ability:Add(358267, true, true)
 Hover.buff_duration = 6
 Hover.cooldown_duration = 35
