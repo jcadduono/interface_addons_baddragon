@@ -1026,6 +1026,7 @@ local Pyre = Ability:Add(357211, false, true, 357212)
 Pyre.essence_cost = 3
 Pyre.triggers_combat = true
 Pyre:AutoAoe()
+local RagingInferno = Ability:Add(405659, false, true)
 local RubyEmbers = Ability:Add(365937, false, true)
 RubyEmbers.buff_duration = 12
 local Scintillation = Ability:Add(370821, false, true)
