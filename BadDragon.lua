@@ -921,13 +921,16 @@ Note: To get talent_node value for a talent, hover over talent and use macro:
 local AzureStrike = Ability:Add(362969, false, true)
 AzureStrike.mana_cost = 0.9
 AzureStrike.max_range = 25
+AzureStrike.color = 'blue'
 AzureStrike.triggers_combat = true
 AzureStrike:AutoAoe()
 local BlessingOfTheBronze = Ability:Add(364342, true, false, 381748)
 BlessingOfTheBronze.buff_duration = 3600
+BlessingOfTheBronze.color = 'bronze'
 local DeepBreath = Ability:Add(357210, true, true)
 DeepBreath.cooldown_duration = 120
 DeepBreath.buff_duration = 6
+DeepBreath.color = 'black'
 DeepBreath.triggers_combat = true
 DeepBreath.dot = Ability:Add(353759, false, true)
 DeepBreath.dot:AutoAoe(false, 'apply')
@@ -938,16 +941,20 @@ Disintegrate.tick_interval = 1
 Disintegrate.max_range = 25
 Disintegrate.hasted_ticks = true
 Disintegrate.hasted_duration = true
+Disintegrate.color = 'blue'
 Disintegrate.triggers_combat = true
 local EmeraldBlossom = Ability:Add(355913, true, true)
 EmeraldBlossom.mana_cost = 4.8
 EmeraldBlossom.cooldown_duration = 30
+EmeraldBlossom.color = 'green'
 local FireBreath = Ability:Add(357208, false, true)
 FireBreath.mana_cost = 2.6
 FireBreath.cooldown_duration = 30
 FireBreath.triggers_combat = true
 FireBreath.learn_spellId = 357208
 FireBreath.spellId_fom = 382266
+FireBreath.empowered_spell = true
+FireBreath.color = 'red'
 FireBreath.dot = Ability:Add(357209, false, true)
 FireBreath.dot.buff_duration = 24
 FireBreath.dot:AutoAoe()
@@ -958,6 +965,7 @@ Hover.requires_charge = true
 local LivingFlame = Ability:Add(361469, false, true, 361500)
 LivingFlame.mana_cost = 2
 LivingFlame.max_range = 25
+LivingFlame.color = 'red'
 LivingFlame.triggers_combat = true
 LivingFlame:AutoAoe()
 ------ Talents
@@ -970,13 +978,17 @@ local Quell = Ability:Add(351338, false, true)
 Quell.cooldown_duration = 40
 Quell.buff_duration = 4
 Quell.max_range = 25
+local ScarletAdaptation = Ability:Add(372469, true, true, 372470)
 local TipTheScales = Ability:Add(370553, true, true)
 TipTheScales.cooldown_duration = 120
+TipTheScales.color = 'bronze'
 local VerdantEmbrace = Ability:Add(360995, true, true)
 VerdantEmbrace.mana_cost = 3
 VerdantEmbrace.cooldown_duration = 24
+VerdantEmbrace.color = 'green'
 ------ Procs
-
+local LimitlessPotential = Ability:Add(394402, true, true)
+LimitlessPotential.buff_duration = 6
 ---- Devastation
 ------ Talents
 local Animosity = Ability:Add(375797, true, true)
@@ -991,6 +1003,7 @@ local DenseEnergy = Ability:Add(370962, true, true)
 local Dragonrage = Ability:Add(375087, true, true)
 Dragonrage.cooldown_duration = 120
 Dragonrage.buff_duration = 14
+Dragonrage.color = 'red'
 Dragonrage.triggers_combat = true
 local EngulfingBlaze = Ability:Add(370837, true, true)
 local EssenceAttunement = Ability:Add(375722, true, true)
@@ -1000,6 +1013,8 @@ EternitySurge.max_range = 25
 EternitySurge.triggers_combat = true
 EternitySurge.learn_spellId = 359073
 EternitySurge.spellId_fom = 382411
+EternitySurge.color = 'blue'
+EternitySurge.empowered_spell = true
 EternitySurge:AutoAoe()
 local EternitysSpan = Ability:Add(375757, true, true)
 local EverburningFlame = Ability:Add(370819, true, true)
@@ -1012,18 +1027,24 @@ local Firestorm = Ability:Add(368847, false, true)
 Firestorm.cooldown_duration = 20
 Firestorm.buff_duration = 12
 Firestorm.max_range = 25
+Firestorm.color = 'red'
 Firestorm.triggers_combat = true
 Firestorm:AutoAoe()
 Firestorm:TrackAuras()
 local Iridescence = Ability:Add(370867, true, true)
 Iridescence.blue = Ability:Add(386399, true, true)
 Iridescence.blue.buff_duration = 10
+Iridescence.blue.max_stack = 2
+Iridescence.blue.color = 'blue'
 Iridescence.red = Ability:Add(386353, true, true)
 Iridescence.red.buff_duration = 10
+Iridescence.red.max_stack = 2
+Iridescence.red.color = 'red'
 local PowerSwell = Ability:Add(370839, true, true, 376850)
 PowerSwell.buff_duration = 4
 local Pyre = Ability:Add(357211, false, true, 357212)
 Pyre.essence_cost = 3
+Pyre.color = 'red'
 Pyre.triggers_combat = true
 Pyre:AutoAoe()
 local RagingInferno = Ability:Add(405659, false, true)
@@ -1035,6 +1056,7 @@ local ShatteringStar = Ability:Add(370452, false, true)
 ShatteringStar.cooldown_duration = 15
 ShatteringStar.buff_duration = 4
 ShatteringStar.max_range = 25
+ShatteringStar.color = 'blue'
 ShatteringStar.triggers_combat = true
 ShatteringStar:AutoAoe()
 local Snapfire = Ability:Add(370783, true, true, 370818)
@@ -1494,32 +1516,28 @@ function TipTheScales:Cooldown()
 end
 
 function Iridescence.blue:Remains()
-	if EternitySurge:Channeling() then
+	if Player.channel.ability and Player.channel.ability.empowered_spell and Player.channel.ability.color == self.color then
 		return self:Duration()
+	end
+	local stack = self:Stack()
+	if stack == 0 then
+		return 0
 	end
 	return Ability.Remains(self)
 end
+Iridescence.red.Remains = Iridescence.blue.Remains
 
 function Iridescence.blue:Stack()
-	if EternitySurge:Channeling() then
-		return 2
+	if Player.channel.ability and Player.channel.ability.empowered_spell and Player.channel.ability.color == self.color then
+		return self.max_stack
 	end
-	return Ability.Stack(self)
-end
-
-function Iridescence.red:Remains()
-	if FireBreath:Channeling() then
-		return self:Duration()
+	local stack = Ability.Stack(self)
+	if Player.cast.ability and not Player.cast.ability.empowered_spell and Player.cast.ability.color == self.color then
+		stack = stack - 1
 	end
-	return Ability.Remains(self)
+	return max(0, stack)
 end
-
-function Iridescence.red:Stack()
-	if FireBreath:Channeling() then
-		return self:Stack()
-	end
-	return Ability.Remains(self)
-end
+Iridescence.red.Stack = Iridescence.blue.Stack
 
 -- End Ability Modifications
 
@@ -1727,17 +1745,29 @@ actions.st+=/azure_strike
 	if KharnalexTheFirstLight:Usable() and Dragonrage:Down() and ShatteringStar:Down() then
 		UseCooldown(KharnalexTheFirstLight)
 	end
-	if Dragonrage:Usable() and Dragonrage:Down() and ((FireBreath:Ready(Player.gcd) and EternitySurge:Ready(2 * Player.gcd)) or (Target.boss and Target.timeToDie < 30)) then
+	if Snapfire.known and Firestorm:Usable() and Snapfire:Up() then
+		return Firestorm
+	end
+	if Dragonrage:Usable() and Dragonrage:Down() and ((FireBreath:Ready(4) and EternitySurge:Ready(10) and Target.timeToDie >= 32) or (Target.boss and Target.timeToDie < 30)) then
 		UseCooldown(Dragonrage)
 	end
 	if TipTheScales:Usable() and Dragonrage:Up() and ((FeedTheFlames.known and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (Dragonrage:Remains() > FireBreath:Cooldown() or Dragonrage:Remains() > EternitySurge:Cooldown()))) then
 		UseCooldown(TipTheScales)
 	end
-	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > 15 or not Animosity.known) then
+	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
+		(Player.set_bonus.t30 >= 4 and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
+		(Player.set_bonus.t30 < 4 and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
+	) then
 		local apl = self:fb()
 		if apl then return apl end
 	end
-	if EternitySurge:Usable() and (not Dragonrage.known or self.next_dragonrage > 15 or not Animosity.known) then
+	if ShatteringStar:Usable() and (not ArcaneVigor.known or EssenceBurst:Stack() < EssenceBurst:MaxStack()) then
+		return ShatteringStar
+	end
+	if EternitySurge:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
+		(Player.set_bonus.t30 >= 4 and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
+		(Player.set_bonus.t30 < 4 and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
+	) then
 		local apl = self:es()
 		if apl then return apl end
 	end
@@ -1747,30 +1777,30 @@ actions.st+=/azure_strike
 	if Animosity.known and Dragonrage:Up() and Dragonrage:Remains() < (Player.gcd + self.r1_cast_time) and (Dragonrage:Remains() - EternitySurge:Cooldown()) >= (self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) then
 		return WaitFor(EternitySurge)
 	end
-	if ShatteringStar:Usable() and (EyeOfInfinity.known or Dragonrage:Down() or EssenceBurst:Stack() == EssenceBurst:MaxStack()) then
-		return ShatteringStar
-	end
 	if Burnout.known and LivingFlame:Usable() and Burnout:Up() and Dragonrage:Up() and Dragonrage:Remains() < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
 		return LivingFlame
 	end
 	if AzureStrike:Usable() and Dragonrage:Up() and Dragonrage:Remains() < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
 		return AzureStrike
 	end
-	if Firestorm:Usable() and ((Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down())) or (Snapfire.known and Snapfire:Up())) then
-		return Firestorm
-	end
-	if Burnout.known and LivingFlame:Usable() and Burnout:Up() and EssenceBurst:Stack() < EssenceBurst:MaxStack() and Player.essence.deficit > 1 then
-		return LivingFlame
-	end
-	if AzureStrike:Usable() and Dragonrage:Up() and ((Player.essence.current < 3 and EssenceBurst:Down()) or (ShatteringStar.known and ShatteringStar:Ready((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd))) then
-		return AzureStrike
+	if RagingInferno.known and ChargedBlast.known and Pyre:Usable() and Firestorm:Up() and ChargedBlast:Stack() == 20 and Player.enemies >= 2 then
+		return Pyre
 	end
 	if Disintegrate:Usable() and (Dragonrage:Up() or (not ShatteringStar.known or not ShatteringStar:Ready(6) or Player.essence.deficit <= 1 or EssenceBurst:Stack() == EssenceBurst:MaxStack())) then
 		Player.channel.interrupt_if = self.channel_interrupt[1]
 		return Disintegrate
 	end
-	if DeepBreath:Usable() and Player.enemies > 1 and Dragonrage:Down() then
+	if Firestorm:Usable() and ((Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()))) then
+		return Firestorm
+	end
+	if DeepBreath:Usable() and Player.enemies > 1 and Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()) then
 		UseCooldown(DeepBreath)
+	end
+	if LivingFlame:Usable() and (Dragonrage:Down() or (Player.enemies <= 1 and (Iridescence.red:Remains() > LivingFlame:CastTime() or ScarletAdaptation:Up() or Iridescence.blue:Up()))) then
+		return LivingFlame
+	end
+	if AzureStrike:Usable() then
+		return AzureStrike
 	end
 	if LivingFlame:Usable() then
 		return LivingFlame
