@@ -1502,8 +1502,11 @@ function LivingFlame:Free()
 end
 
 function LeapingFlames:Remains()
-	if LeapingFlames.known and FireBreath:Channeling() then
+	if self.known and FireBreath:Channeling() then
 		return self:Duration()
+	end
+	if LivingFlame:Casting() then
+		return 0
 	end
 	return Ability.Remains(self)
 end
