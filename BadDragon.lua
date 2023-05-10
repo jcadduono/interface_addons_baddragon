@@ -104,6 +104,8 @@ local function InitOpts()
 		pot = false,
 		trinket = true,
 		heal_threshold = 60,
+		use_early_chaining = true,
+		use_clipping = true,
 	})
 end
 
@@ -130,6 +132,13 @@ local SPEC = {
 	NONE = 0,
 	DEVASTATION = 1,
 	PRESERVATION = 2,
+}
+
+-- action priority list defaults
+local APL = {
+	[SPEC.NONE] = {},
+	[SPEC.DEVASTATION] = {},
+	[SPEC.PRESERVATION] = {},
 }
 
 -- current player information
@@ -175,6 +184,8 @@ local Player = {
 		remains = 0,
 		tick_interval = 0,
 		ticks = 0,
+		interruptible = false,
+		early_chainable = false,
 	},
 	threat = {
 		status = 0,
@@ -1355,8 +1366,13 @@ function Player:Update()
 		autoAoe:Purge()
 	end
 
+	self.main = APL[self.spec]:Main()
+
 	if self.channel.interrupt_if then
-		self.channel.interruptible = self.channel.interrupt_if()
+		self.channel.interruptible = self.channel.ability ~= self.main and self.channel.interrupt_if()
+	end
+	if self.channel.early_chain_if then
+		self.channel.early_chainable = self.channel.ability == self.main and self.channel.early_chain_if()
 	end
 end
 
@@ -1570,13 +1586,8 @@ end
 
 -- Begin Action Priority Lists
 
-local APL = {
-	[SPEC.NONE] = {
-		main = function() end
-	},
-	[SPEC.DEVASTATION] = {},
-	[SPEC.PRESERVATION] = {},
-}
+APL[SPEC.NONE].Main = function(self)
+end
 
 APL[SPEC.DEVASTATION].Main = function(self)
 	if Player.health.pct < Opt.heal_threshold then
@@ -1715,6 +1726,8 @@ actions.aoe+=/azure_strike
 		UseCooldown(KharnalexTheFirstLight)
 	end
 	if Disintegrate:Usable() and (not Player.moving or Hover:Up()) then
+		Player.channel.interrupt_if = self.channel_interrupt[3]
+		Player.channel.early_chain_if = self.channel_early_chain[3]
 		return Disintegrate
 	end
 	if Snapfire.known and Burnout.known and LivingFlame:Usable() and Burnout:Up() then
@@ -1796,8 +1809,9 @@ actions.st+=/azure_strike
 	if RagingInferno.known and ChargedBlast.known and Pyre:Usable() and Firestorm:Up() and ChargedBlast:Stack() == 20 and Player.enemies >= 2 then
 		return Pyre
 	end
-	if Disintegrate:Usable() and (Dragonrage:Up() or (not ShatteringStar.known or not ShatteringStar:Ready(6) or Player.essence.deficit <= 1 or EssenceBurst:Stack() == EssenceBurst:MaxStack())) then
-		Player.channel.interrupt_if = self.channel_interrupt[1]
+	if Disintegrate:Usable() then
+		Player.channel.interrupt_if = self.channel_interrupt[BlazingShards.known and 1 or 2]
+		Player.channel.early_chain_if = self.channel_early_chain[BlazingShards.known and 1 or 2]
 		return Disintegrate
 	end
 	if Firestorm:Usable() and ((Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()))) then
@@ -1818,8 +1832,32 @@ actions.st+=/azure_strike
 end
 
 APL[SPEC.DEVASTATION].channel_interrupt = {
-	[1] = function() -- Disintegrate (st)
-		return Dragonrage:Up() and Player.channel.ticks >= 2 and (FireBreath:Ready() or EternitySurge:Ready())
+	[1] = function() -- Disintegrate (st with Blazing Shards)
+		--interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(!(buff.power_infusion.up&buff.bloodlust.up)|cooldown.fire_breath.up|cooldown.eternity_surge.up)&(raid_event.movement.in>2|buff.hover.up)
+		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage:Up() and (not (PowerInfusion:Up() and Player:BloodlustActive()) or FireBreath:Ready() or EternitySurge:Ready())
+	end,
+	[2] = function() -- Disintegrate (st without Blazing Shards)
+		--interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
+		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage:Up()
+	end,
+	[3] = function() -- Disintegrate (aoe)
+		--interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
+		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage:Up()
+	end,
+}
+
+APL[SPEC.DEVASTATION].channel_early_chain = {
+	[1] = function() -- Disintegrate (st with Blazing Shards)
+		--early_chain_if=evoker.use_early_chaining&ticks>=2&buff.dragonrage.up&!(buff.power_infusion.up&buff.bloodlust.up)&(raid_event.movement.in>2|buff.hover.up)
+		return Opt.use_early_chaining and Player.channel.ticks >= 2 and Dragonrage:Up() and not (PowerInfusion:Up() and Player:BloodlustActive())
+	end,
+	[2] = function() -- Disintegrate (st without Blazing Shards)
+		--evoker.use_early_chaining&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
+		return Opt.use_early_chaining and Player.channel.ticks >= 2 and Dragonrage:Up()
+	end,
+	[3] = function() -- Disintegrate (aoe)
+		--early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
+		return Opt.use_early_chaining and Player.channel.ticks >= 2 and (Dragonrage:Up() or Player.essence.deficit <= 1)
 	end,
 }
 
@@ -2179,8 +2217,11 @@ function UI:UpdateDisplay()
 	end
 	if Player.main and Player.main_freecast then
 		border = 'freecast'
-	elseif Player.channel.ability and Player.channel.interrupt_if and not Player.channel.interruptible then
-		border = 'misseffect'
+	end
+	if Player.channel.ability and (
+		(Player.channel.early_chain_if and Player.channel.ability == Player.main and not Player.channel.early_chainable) or
+		(Player.channel.interrupt_if and Player.channel.ability ~= Player.main and not Player.channel.interruptible)
+	) then
 		dim = Opt.dimmer
 	end
 	if border ~= badDragonPanel.borderOverlay then
@@ -2202,7 +2243,6 @@ function UI:UpdateCombat()
 
 	Player:Update()
 
-	Player.main = APL[Player.spec]:Main()
 	if Player.main then
 		badDragonPanel.icon:SetTexture(Player.main.icon)
 		Player.main_freecast = (Player.main.mana_cost > 0 and Player.main:ManaCost() == 0) or (Player.main.essence_cost > 0 and Player.main:EssenceCost() == 0) or (Player.main.Free and Player.main:Free())
@@ -2468,6 +2508,9 @@ function events:UNIT_SPELLCAST_CHANNEL_STOP(unitId, castGUID, spellId)
 	Player.channel.tick_interval = 0
 	Player.channel.ticks = 0
 	Player.channel.interrupt_if = nil
+	Player.channel.interruptible = false
+	Player.channel.early_chain_if = nil
+	Player.channel.early_chainable = false
 end
 events.UNIT_SPELLCAST_EMPOWER_STOP = events.UNIT_SPELLCAST_CHANNEL_STOP
 
@@ -2903,6 +2946,18 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		end
 		return Status('Health percentage threshold to recommend self healing spells', Opt.heal_threshold .. '%')
 	end
+	if startsWith(msg[1], 'cl') then
+		if msg[2] then
+			Opt.use_clipping = msg[2] == 'on'
+		end
+		return Status('Allow clipping channeled spells', Opt.use_clipping)
+	end
+	if startsWith(msg[1], 'ea') then
+		if msg[2] then
+			Opt.use_early_chaining = msg[2] == 'on'
+		end
+		return Status('Allow early chaining channeled spells', Opt.use_early_chaining)
+	end
 	if msg[1] == 'reset' then
 		badDragonPanel:ClearAllPoints()
 		badDragonPanel:SetPoint('CENTER', 0, -169)
@@ -2934,6 +2989,8 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		'pot |cFF00C000on|r/|cFFC00000off|r - show flasks and battle potions in cooldown UI',
 		'trinket |cFF00C000on|r/|cFFC00000off|r - show on-use trinkets in cooldown UI',
 		'heal |cFFFFD000[percent]|r - health percentage threshold to recommend self healing spells (default is 60%, 0 to disable)',
+		'clipping |cFF00C000on|r/|cFFC00000off|r - allow clipping channeled spells',
+		'early |cFF00C000on|r/|cFFC00000off|r - allow early chaining channeled spells',
 		'|cFFFFD000reset|r - reset the location of the ' .. ADDON .. ' UI to default',
 	} do
 		print('  ' .. SLASH_BadDragon1 .. ' ' .. cmd)
