@@ -1765,8 +1765,8 @@ actions.st+=/azure_strike
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
-		(Player.set_bonus.t30 >= 4 and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
-		(Player.set_bonus.t30 < 4 and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
+		(BlazingShards.known and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
+		(not BlazingShards.known and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
 	) then
 		local apl = self:fb()
 		if apl then return apl end
@@ -1775,8 +1775,8 @@ actions.st+=/azure_strike
 		return ShatteringStar
 	end
 	if EternitySurge:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
-		(Player.set_bonus.t30 >= 4 and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
-		(Player.set_bonus.t30 < 4 and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
+		(BlazingShards.known and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
+		(not BlazingShards.known and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
 	) then
 		local apl = self:es()
 		if apl then return apl end
