@@ -1539,6 +1539,13 @@ function Iridescence.blue:Stack()
 end
 Iridescence.red.Stack = Iridescence.blue.Stack
 
+function PowerSwell:Remains()
+	if Player.channel.ability and Player.channel.ability.empowered_spell then
+		return self:Duration()
+	end
+	return Ability.Remains(self)
+end
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
