@@ -1698,19 +1698,21 @@ APL[SPEC.DEVASTATION].Main = function(self)
 actions.precombat=flask
 actions.precombat+=/food
 actions.precombat+=/augmentation
-# Snapshot raid buffed stats before combat begins and pre-potting is done.
 actions.precombat+=/snapshot_stats
 actions.precombat+=/variable,name=trinket_1_buffs,value=trinket.1.has_buff.intellect|trinket.1.has_buff.mastery|trinket.1.has_buff.versatility|trinket.1.has_buff.haste|trinket.1.has_buff.crit
 actions.precombat+=/variable,name=trinket_2_buffs,value=trinket.2.has_buff.intellect|trinket.2.has_buff.mastery|trinket.2.has_buff.versatility|trinket.2.has_buff.haste|trinket.2.has_buff.crit
-# Decide which trinket to pair with Dragonrage, prefer 2 minute and 1 minute trinkets
 actions.precombat+=/variable,name=trinket_1_sync,op=setif,value=1,value_else=0.5,condition=variable.trinket_1_buffs&(trinket.1.cooldown.duration%%cooldown.dragonrage.duration=0|cooldown.dragonrage.duration%%trinket.1.cooldown.duration=0)
 actions.precombat+=/variable,name=trinket_2_sync,op=setif,value=1,value_else=0.5,condition=variable.trinket_2_buffs&(trinket.2.cooldown.duration%%cooldown.dragonrage.duration=0|cooldown.dragonrage.duration%%trinket.2.cooldown.duration=0)
-# Estimates a trinkets value by comparing the cooldown of the trinket, divided by the duration of the buff it provides. Has a intellect modifier (currently 1.5x) to give a higher priority to intellect trinkets. The intellect modifier should be changed as intellect priority increases or decreases. As well as a modifier for if a trinket will or will not sync with cooldowns.
 actions.precombat+=/variable,name=trinket_1_manual,value=trinket.1.is.spoils_of_neltharus
 actions.precombat+=/variable,name=trinket_2_manual,value=trinket.2.is.spoils_of_neltharus
 actions.precombat+=/variable,name=trinket_1_exclude,value=trinket.1.is.ruby_whelp_shell|trinket.1.is.whispering_incarnate_icon
 actions.precombat+=/variable,name=trinket_2_exclude,value=trinket.2.is.ruby_whelp_shell|trinket.2.is.whispering_incarnate_icon
 actions.precombat+=/variable,name=trinket_priority,op=setif,value=2,value_else=1,condition=!variable.trinket_1_buffs&variable.trinket_2_buffs|variable.trinket_2_buffs&((trinket.2.cooldown.duration%trinket.2.proc.any_dps.duration)*(1.5+trinket.2.has_buff.intellect)*(variable.trinket_2_sync))>((trinket.1.cooldown.duration%trinket.1.proc.any_dps.duration)*(1.5+trinket.1.has_buff.intellect)*(variable.trinket_1_sync))
+actions.precombat+=/variable,name=r1_cast_time,value=1.0*spell_haste
+actions.precombat+=/variable,name=dr_prep_time_aoe,default=4,op=reset
+actions.precombat+=/variable,name=dr_prep_time_st,default=13,op=reset
+actions.precombat+=/variable,name=has_external_pi,value=cooldown.invoke_power_infusion_0.duration>0
+actions.precombat+=/verdant_embrace,if=talent.scarlet_adaptation|talent.ancient_flame
 actions.precombat+=/use_item,name=shadowed_orb_of_torment
 actions.precombat+=/firestorm,if=talent.firestorm
 actions.precombat+=/living_flame,if=!talent.firestorm
@@ -1736,15 +1738,12 @@ actions.precombat+=/living_flame,if=!talent.firestorm
 		end
 	end
 --[[
-actions=potion,if=buff.dragonrage.up|fight_remains<35
-# Variable that evaluates when next dragonrage is by working out the maximum between the dragonrage cd and your empowers, ignoring CDR effect estimates.
+actions=potion,if=buff.dragonrage.up&(!cooldown.shattering_star.up|active_enemies>=2)|fight_remains<35
 actions+=/variable,name=next_dragonrage,value=cooldown.dragonrage.remains<?(cooldown.eternity_surge.remains-2*gcd.max)<?(cooldown.fire_breath.remains-gcd.max)
-# Rank 1 empower spell cast time TODO: multiplier should be 1.0 but 1.3 results in more dps for EBF builds
-actions+=/variable,name=r1_cast_time,value=1.3*spell_haste
-# Invoke External Power Infusions if they're available during dragonrage
-actions+=/invoke_external_buff,name=power_infusion,if=buff.dragonrage.up&!buff.power_infusion.up
+actions+=/invoke_external_buff,name=power_infusion,if=buff.dragonrage.up&!buff.power_infusion.up&!cooldown.fire_breath.up&!cooldown.shattering_star.up
+actions+=/quell,use_off_gcd=1,if=target.debuff.casting.react
 actions+=/call_action_list,name=trinkets
-actions+=/run_action_list,name=aoe,if=spell_targets.pyre>=3
+actions+=/run_action_list,name=aoe,if=active_enemies>=3
 actions+=/run_action_list,name=st
 ]]
 	self.dr_prep_time_aoe = 4
@@ -1761,22 +1760,22 @@ end
 
 APL[SPEC.DEVASTATION].aoe = function(self)
 --[[
-actions.aoe=shattering_star,if=cooldown.dragonrage.up
+actions.aoe=shattering_star,target_if=max:target.health.pct,if=cooldown.dragonrage.up
 actions.aoe+=/dragonrage,if=target.time_to_die>=32|fight_remains<30
 actions.aoe+=/tip_the_scales,if=buff.dragonrage.up&(active_enemies<=3+3*talent.eternitys_span|!cooldown.fire_breath.up)
 actions.aoe+=/call_action_list,name=fb,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_aoe|!talent.animosity)&(buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time|buff.dragonrage.up)&(target.time_to_die>=8|fight_remains<30)
 actions.aoe+=/call_action_list,name=es,if=buff.dragonrage.up|!talent.dragonrage|(cooldown.dragonrage.remains>variable.dr_prep_time_aoe&buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time)&(target.time_to_die>=8|fight_remains<30)
 actions.aoe+=/deep_breath,if=!buff.dragonrage.up
-actions.aoe+=/shattering_star,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
+actions.aoe+=/shattering_star,target_if=max:target.health.pct,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
 actions.aoe+=/firestorm
 actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.burnout.up&buff.leaping_flames.up&!buff.essence_burst.up&(essence.deficit>=2|buff.burnout.remains<gcd*2|buff.leaping_flames.remains<gcd*2)
-actions.aoe+=/pyre,if=talent.volatility&(active_enemies>=4|(talent.charged_blast&!buff.essence_burst.up&!buff.iridescence_blue.up)|(!talent.charged_blast&(!buff.essence_burst.up|!buff.iridescence_blue.up))|(buff.charged_blast.stack>=15)|(talent.raging_inferno&debuff.in_firestorm.up))
-actions.aoe+=/pyre,if=(talent.raging_inferno&debuff.in_firestorm.up)|(active_enemies==3&buff.charged_blast.stack>=15)|active_enemies>=4
+actions.aoe+=/pyre,target_if=max:target.health.pct,if=talent.volatility&(active_enemies>=4|(talent.charged_blast&!buff.essence_burst.up&!buff.iridescence_blue.up)|(!talent.charged_blast&(!buff.essence_burst.up|!buff.iridescence_blue.up))|(buff.charged_blast.stack>=15)|(talent.raging_inferno&debuff.in_firestorm.up))
+actions.aoe+=/pyre,target_if=max:target.health.pct,if=(talent.raging_inferno&debuff.in_firestorm.up)|(active_enemies==3&buff.charged_blast.stack>=15)|active_enemies>=4
 actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.leaping_flames.remains>cast_time&!buff.essence_burst.up&essence.deficit>=2&(!talent.burnout|buff.burnout.up|(!dot.fire_breath.ticking|cooldown.fire_breath.remains<gcd*2)&(active_enemies>=4|buff.scarlet_adaptation.up&(buff.ancient_flame.up|buff.dragonrage.down)))
 actions.aoe+=/use_item,name=kharnalex_the_first_light,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down&active_enemies<=5
-actions.aoe+=/disintegrate,chain=1,early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=raid_event.movement.in>2|buff.hover.up
-actions.aoe+=/living_flame,if=talent.snapfire&buff.burnout.up
-actions.aoe+=/azure_strike
+actions.aoe+=/disintegrate,target_if=max:target.health.pct,chain=1,early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=raid_event.movement.in>2|buff.hover.up
+actions.aoe+=/living_flame,target_if=max:target.health.pct,if=talent.snapfire&buff.burnout.up
+actions.aoe+=/azure_strike,target_if=max:target.health.pct
 ]]
 	if self.use_dragonrage and Dragonrage:Down() then
 		if ShatteringStar:Usable() and Dragonrage:Ready(Player.gcd) and (ArcaneVigor.known or EssenceBurst:Up()) then
@@ -1965,7 +1964,6 @@ APL[SPEC.DEVASTATION].channel_early_chain = {
 
 APL[SPEC.DEVASTATION].es = function(self)
 --[[
-# Eternity Surge, use rank most applicable to targets.
 actions.es=eternity_surge,empower_to=1,if=active_enemies<=1+talent.eternitys_span|buff.dragonrage.remains<1.75*spell_haste&buff.dragonrage.remains>=1*spell_haste|buff.dragonrage.up&(active_enemies==5|!talent.eternitys_span&active_enemies>=6|talent.eternitys_span&active_enemies>=8)
 actions.es+=/eternity_surge,empower_to=2,if=active_enemies<=2+2*talent.eternitys_span|buff.dragonrage.remains<2.5*spell_haste&buff.dragonrage.remains>=1.75*spell_haste
 actions.es+=/eternity_surge,empower_to=3,if=active_enemies<=3+3*talent.eternitys_span|!talent.font_of_magic|buff.dragonrage.remains<=3.25*spell_haste&buff.dragonrage.remains>=2.5*spell_haste
@@ -1991,7 +1989,6 @@ end
 
 APL[SPEC.DEVASTATION].fb = function(self)
 --[[
-# Fire Breath, use rank appropriate to target count/talents.
 actions.fb=fire_breath,empower_to=1,if=(buff.dragonrage.up&active_enemies<=2)|(active_enemies=1&!talent.everburning_flame)|(buff.dragonrage.remains<1.75*spell_haste&buff.dragonrage.remains>=1*spell_haste)
 actions.fb+=/fire_breath,empower_to=2,if=(!debuff.in_firestorm.up&talent.everburning_flame&active_enemies<=3)|(active_enemies=2&!talent.everburning_flame)|(buff.dragonrage.remains<2.5*spell_haste&buff.dragonrage.remains>=1.75*spell_haste)
 actions.fb+=/fire_breath,empower_to=3,if=!talent.font_of_magic|(debuff.in_firestorm.up&talent.everburning_flame&active_enemies<=3)|(buff.dragonrage.remains<=3.25*spell_haste&buff.dragonrage.remains>=2.5*spell_haste)
