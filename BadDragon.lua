@@ -974,6 +974,7 @@ FireBreath.triggers_combat = true
 FireBreath.learn_spellId = 357208
 FireBreath.spellId_fom = 382266
 FireBreath.empowered_spell = true
+FireBreath.max_empower = 3
 FireBreath.color = 'red'
 FireBreath.dot = Ability:Add(357209, false, true)
 FireBreath.dot.buff_duration = 24
@@ -1036,6 +1037,7 @@ EternitySurge.learn_spellId = 359073
 EternitySurge.spellId_fom = 382411
 EternitySurge.color = 'blue'
 EternitySurge.empowered_spell = true
+EternitySurge.max_empower = 3
 EternitySurge:AutoAoe()
 local EternitysSpan = Ability:Add(375757, true, true)
 local EverburningFlame = Ability:Add(370819, true, true)
@@ -1373,6 +1375,7 @@ function Player:UpdateEmpowerInfo()
 	empower.start = start / 1000
 	empower.ends = ends / 1000
 	empower.rank = 0
+	empower.haste_factor = 1 / (1 + (UnitSpellHaste('player') + (FontOfMagic.known and FontOfMagic.spellId == 411212 and 20 or 0)) / 100)
 end
 
 function Player:UpdateThreat()
@@ -1415,6 +1418,9 @@ function Player:Update()
 	if self.channel.tick_count > 1 then
 		self.channel.ticks = ((self.ctime - self.channel.start) / self.channel.tick_interval) - self.channel.ticks_extra
 		self.channel.ticks_remain = (self.channel.ends - self.ctime) / self.channel.tick_interval
+	end
+	if self.empower.ability then
+		self.empower.rank = floor(max(0, min(self.empower.ability:MaxEmpower(), (self.ctime - self.empower.start - (0.250 * self.empower.haste_factor)) / (0.750 * self.empower.haste_factor))))
 	end
 	self.mana.regen = GetPowerRegenForPowerType(0)
 	self.mana.current = UnitPower('player', 0) + (self.mana.regen * self.execute_remains)
@@ -1541,6 +1547,13 @@ end
 -- End Target API
 
 -- Start Ability Modifications
+
+function Ability:MaxEmpower()
+	if self.empowered_spell then
+		return (self.max_empower or 0) + (FontOfMagic.known and 1 or 0)
+	end
+	return 0
+end
 
 function EssenceBurst:Remains()
 	if LivingFlame:Casting() and Dragonrage:Up() then
@@ -2255,7 +2268,7 @@ end
 
 function UI:UpdateDisplay()
 	timer.display = 0
-	local dim, dim_cd, border, text_center, text_cd, text_tl, text_tr
+	local dim, dim_cd, border, text_center, text_cd, color_center
 
 	if Opt.dimmer then
 		dim = not ((not Player.main) or
@@ -2274,10 +2287,9 @@ function UI:UpdateDisplay()
 				text_center = format('%.1f', react)
 			end
 		end
-	end
-	if Player.empower.ability and Player.empower.ability.empower_to then
-		text_center = format('RANK %d', Player.empower.ability.empower_to)
-		dim = Opt.dimmer
+		if Player.main.freecast then
+			border = 'freecast'
+		end
 	end
 	if Player.cd then
 		if Player.cd.empower_to then
@@ -2292,39 +2304,61 @@ function UI:UpdateDisplay()
 	if Player.wait_time then
 		local deficit = Player.wait_time - GetTime()
 		if deficit > 0 then
-			text_center = format('WAIT %.1fs', deficit)
+			text_center = format('WAIT\n%.1fs', deficit)
 			dim = Opt.dimmer
 		end
 	end
-	if Player.main and Player.main_freecast then
-		border = 'freecast'
-	end
-	if Player.channel.tick_count > 0 then
+	if Player.empower.ability then
+		dim = Opt.dimmer
+		local ctime = GetTime()
+		local empower = Player.empower
+		empower.rank = floor(max(0, min(empower.ability:MaxEmpower(), (ctime - empower.start - (0.250 * empower.haste_factor)) / (0.750 * empower.haste_factor))))
+		if empower.ability.empower_to then
+			text_center = format('RANK %d', empower.ability.empower_to)
+			if empower.rank >= empower.ability.empower_to then
+				color_center = 'green'
+				dim = false
+			end
+		elseif empower.rank >= 1 then
+			dim = false
+		end
+	elseif Player.channel.tick_count > 0 then
 		dim = Opt.dimmer
 		if Player.channel.tick_count > 1 then
 			local ctime = GetTime()
 			local channel = Player.channel
 			channel.ticks = ((ctime - channel.start) / channel.tick_interval) - channel.ticks_extra
 			channel.ticks_remain = (channel.ends - ctime) / channel.tick_interval
-			text_center = format('TICKS %.1f', max(0, channel.ticks))
+			text_center = format('TICKS\n%.1fs', max(0, channel.ticks))
 			if channel.ability == Player.main then
 				if channel.ticks_remain < 1 or channel.early_chainable then
 					dim = false
+					text_center = 'CHAIN'
+					color_center = 'green'
 				end
 			elseif channel.interruptible then
 				dim = false
 			end
 		end
 	end
-	if border ~= badDragonPanel.borderOverlay then
-		badDragonPanel.borderOverlay = border
+
+	if border ~= badDragonPanel.border.overlay then
+		badDragonPanel.border.overlay = border
 		badDragonPanel.border:SetTexture(ADDON_PATH .. (border or 'border') .. '.blp')
+	end
+	if color_center ~= badDragonPanel.text.center.color then
+		badDragonPanel.text.center.color = color_center
+		if color_center == 'green' then
+			badDragonPanel.text.center:SetTextColor(0, 1, 0, 1)
+		elseif color_center == 'red' then
+			badDragonPanel.text.center:SetTextColor(1, 0, 0, 1)
+		else
+			badDragonPanel.text.center:SetTextColor(1, 1, 1, 1)
+		end
 	end
 
 	badDragonPanel.dimmer:SetShown(dim)
 	badDragonPanel.text.center:SetText(text_center)
-	badDragonPanel.text.tl:SetText(text_tl)
-	badDragonPanel.text.tr:SetText(text_tr)
 	--badDragonPanel.text.bl:SetText(format('%.1fs', Target.timeToDie))
 	badDragonCooldownPanel.text:SetText(text_cd)
 	badDragonCooldownPanel.dimmer:SetShown(dim_cd)
