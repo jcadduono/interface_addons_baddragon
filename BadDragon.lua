@@ -2193,11 +2193,11 @@ UI.anchor_points = {
 	kui = { -- Kui Nameplates
 		[SPEC.DEVASTATION] = {
 			['above'] = { 'BOTTOM', 'TOP', 0, 24 },
-			['below'] = { 'TOP', 'BOTTOM', 0, 2 }
+			['below'] = { 'TOP', 'BOTTOM', 0, -1 }
 		},
 		[SPEC.PRESERVATION] = {
 			['above'] = { 'BOTTOM', 'TOP', 0, 24 },
-			['below'] = { 'TOP', 'BOTTOM', 0, 2 }
+			['below'] = { 'TOP', 'BOTTOM', 0, -1 }
 		},
 	},
 }
