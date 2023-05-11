@@ -1859,9 +1859,10 @@ actions.st+=/disintegrate,chain=1,early_chain_if=evoker.use_early_chaining&buff.
 actions.st+=/firestorm,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down
 actions.st+=/deep_breath,if=!buff.dragonrage.up&active_enemies>=2&((raid_event.adds.in>=120&!talent.onyx_legacy)|(raid_event.adds.in>=60&talent.onyx_legacy))
 actions.st+=/deep_breath,if=!buff.dragonrage.up&talent.imminent_destruction&!debuff.shattering_star_debuff.up
+actions.st+=/verdant_embrace,if=talent.ancient_flame&talent.scarlet_adaptation&!buff.dragonrage.up&!buff.ancient_flame.up
 actions.st+=/living_flame,if=!buff.dragonrage.up|(buff.iridescence_red.remains>execute_time|buff.scarlet_adaptation.up&buff.ancient_flame.up|buff.iridescence_blue.up)&active_enemies==1
-actions.st+=/verdant_embrace,if=talent.ancient_flame&!buff.dragonrage.up
 actions.st+=/azure_strike
+actions.st+=/living_flame
 ]]
 	if KharnalexTheFirstLight:Usable() and Dragonrage:Down() and ShatteringStar:Down() then
 		UseCooldown(KharnalexTheFirstLight)
@@ -1917,6 +1918,9 @@ actions.st+=/azure_strike
 	end
 	if DeepBreath:Usable() and Player.enemies > 1 and Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()) then
 		UseCooldown(DeepBreath)
+	end
+	if AncientFlame.known and ScarletAdaptation.known and VerdantEmbrace:Usable() and Dragonrage:Down() and AncientFlame:Down() then
+		UseExtra(VerdantEmbrace)
 	end
 	if LivingFlame:Usable() and (Dragonrage:Down() or (Player.enemies <= 1 and (Iridescence.red:Remains() > LivingFlame:CastTime() or (ScarletAdaptation:Up() and AncientFlame:Up()) or Iridescence.blue:Up()))) then
 		return LivingFlame
