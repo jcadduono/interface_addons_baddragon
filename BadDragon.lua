@@ -1674,7 +1674,7 @@ local function UseExtra(ability, overwrite)
 end
 
 local function WaitFor(ability, wait_time)
-	Player.wait_time = wait_time and (Player.ctime + wait_time) or ability:Cooldown()
+	Player.wait_time = wait_time and (Player.ctime + wait_time) or (Player.ctime + ability:Cooldown())
 	return ability
 end
 
@@ -1973,7 +1973,11 @@ actions.es+=/eternity_surge,empower_to=4
 		else
 			EternitySurge.empower_to = 4
 		end
-		UseCooldown(EternitySurge)
+		if Dragonrage:Up() then
+			return EternitySurge
+		else
+			UseCooldown(EternitySurge)
+		end
 	end
 end
 
@@ -1995,7 +1999,11 @@ actions.fb+=/fire_breath,empower_to=4
 		else
 			FireBreath.empower_to = 4
 		end
-		UseCooldown(FireBreath)
+		if Dragonrage:Up() then
+			return FireBreath
+		else
+			UseCooldown(FireBreath)
+		end
 	end
 end
 
