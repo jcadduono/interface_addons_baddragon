@@ -1769,9 +1769,10 @@ actions.aoe+=/call_action_list,name=es,if=buff.dragonrage.up|!talent.dragonrage|
 actions.aoe+=/deep_breath,if=!buff.dragonrage.up
 actions.aoe+=/shattering_star,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
 actions.aoe+=/firestorm
+actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.burnout.up&buff.leaping_flames.up&!buff.essence_burst.up&(essence.deficit>=2|buff.burnout.remains<gcd*2|buff.leaping_flames.remains<gcd*2)
 actions.aoe+=/pyre,if=talent.volatility&(active_enemies>=4|(talent.charged_blast&!buff.essence_burst.up&!buff.iridescence_blue.up)|(!talent.charged_blast&(!buff.essence_burst.up|!buff.iridescence_blue.up))|(buff.charged_blast.stack>=15)|(talent.raging_inferno&debuff.in_firestorm.up))
 actions.aoe+=/pyre,if=(talent.raging_inferno&debuff.in_firestorm.up)|(active_enemies==3&buff.charged_blast.stack>=15)|active_enemies>=4
-actions.aoe+=/living_flame,target_if=max:target.health.pct,if=(!talent.burnout|buff.burnout.up|active_enemies>=4|buff.scarlet_adaptation.up&(buff.ancient_flame.up|buff.dragonrage.down))&buff.leaping_flames.up&!buff.essence_burst.up&essence<essence.max-1
+actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.leaping_flames.remains>cast_time&!buff.essence_burst.up&essence.deficit>=2&(!talent.burnout|buff.burnout.up|(!dot.fire_breath.ticking|cooldown.fire_breath.remains<gcd*2)&(active_enemies>=4|buff.scarlet_adaptation.up&(buff.ancient_flame.up|buff.dragonrage.down)))
 actions.aoe+=/use_item,name=kharnalex_the_first_light,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down&active_enemies<=5
 actions.aoe+=/disintegrate,chain=1,early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=raid_event.movement.in>2|buff.hover.up
 actions.aoe+=/living_flame,if=talent.snapfire&buff.burnout.up
@@ -1805,6 +1806,9 @@ actions.aoe+=/azure_strike
 	if Firestorm:Usable() then
 		return Firestorm
 	end
+	if Burnout.known and LeapingFlames.known and LivingFlame:Usable() and Burnout:Up() and LeapingFlames:Up() and EssenceBurst:Down() and (Player.essence.deficit >= 2 or Burnout:Remains() < (Player.gcd * 2) or LeapingFlames:Remains() < (Player.gcd * 2)) then
+		return LivingFlame
+	end
 	if Pyre:Usable() and (
 		Player.enemies >= 4 or
 		(ChargedBlast.known and Player.enemies == 3 and ChargedBlast:Stack() >= 15) or
@@ -1813,7 +1817,7 @@ actions.aoe+=/azure_strike
 	) then
 		return Pyre
 	end
-	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Up() and EssenceBurst:Down() and Player.essence.deficit >= 2 and (not Burnout.known or Burnout:Up() or Player.enemies >= 4 or (ScarletAdaptation:Up() and (AncientFlame:Up() or Dragonrage:Down()))) then
+	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Remains() > LivingFlame:CastTime() and EssenceBurst:Down() and Player.essence.deficit >= 2 and (not Burnout.known or Burnout:Up() or ((FireBreath.dot:Down() or FireBreath:Ready(Player.gcd * 2)) and (Player.enemies >= 4 or (ScarletAdaptation:Up() and (AncientFlame:Up() or Dragonrage:Down()))))) then
 		return LivingFlame
 	end
 	if KharnalexTheFirstLight:Usable() and Dragonrage:Down() and ShatteringStar:Down() and Player.enemies <= 5 then
