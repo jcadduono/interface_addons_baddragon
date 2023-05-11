@@ -179,13 +179,22 @@ local Player = {
 		remains = 0,
 	},
 	channel = {
+		chained = false,
 		start = 0,
 		ends = 0,
 		remains = 0,
+		tick_count = 0,
 		tick_interval = 0,
 		ticks = 0,
+		ticks_remain = 0,
+		ticks_extra = 0,
 		interruptible = false,
 		early_chainable = false,
+	},
+	empower = {
+		start = 0,
+		ends = 0,
+		rank = 0,
 	},
 	threat = {
 		status = 0,
@@ -985,6 +994,7 @@ BlastFurnace.talent_node = 68667
 local FontOfMagic = Ability:Add({375783, 411212}, true, true)
 local LeapingFlames = Ability:Add(369939, true, true, 370901)
 LeapingFlames.buff_duration = 30
+local NaturalConvergence = Ability:Add(369913, false, true)
 local Quell = Ability:Add(351338, false, true)
 Quell.cooldown_duration = 40
 Quell.buff_duration = 4
@@ -1306,6 +1316,65 @@ function Player:UpdateAbilities()
 	end
 end
 
+function Player:UpdateChannelInfo()
+	local channel = self.channel
+	local _, _, _, start, ends, _, _, spellId = UnitChannelInfo('player')
+	if not spellId then
+		channel.ability = nil
+		channel.chained = false
+		channel.start = 0
+		channel.ends = 0
+		channel.tick_count = 0
+		channel.tick_interval = 0
+		channel.ticks = 0
+		channel.ticks_remain = 0
+		channel.ticks_extra = 0
+		channel.interrupt_if = nil
+		channel.interruptible = false
+		channel.early_chain_if = nil
+		channel.early_chainable = false
+		return
+	end
+	local ability = abilities.bySpellId[spellId]
+	if ability and ability == channel.ability then
+		channel.chained = true
+	else
+		channel.ability = ability
+	end
+	channel.ticks = 0
+	channel.start = start / 1000
+	channel.ends = ends / 1000
+	if ability and ability.tick_interval then
+		channel.tick_interval = ability:TickTime()
+	else
+		channel.tick_interval = channel.ends - channel.start
+	end
+	channel.tick_count = (channel.ends - channel.start) / channel.tick_interval
+	if channel.chained then
+		channel.ticks_extra = channel.tick_count - floor(channel.tick_count)
+	else
+		channel.ticks_extra = 0
+	end
+	channel.ticks_remain = channel.tick_count
+end
+
+function Player:UpdateEmpowerInfo()
+	local empower = self.empower
+	local _, _, _, start, ends, _, _, spellId = UnitChannelInfo('player')
+	local ability = spellId and abilities.bySpellId[spellId]
+	if not (ability and ability.empowered_spell) then
+		empower.ability = nil
+		empower.start = 0
+		empower.ends = 0
+		empower.rank = 0
+		return
+	end
+	empower.ability = ability
+	empower.start = start / 1000
+	empower.ends = ends / 1000
+	empower.rank = 0
+end
+
 function Player:UpdateThreat()
 	local _, status, pct
 	_, status, pct = UnitDetailedThreatSituation('player', 'target')
@@ -1343,8 +1412,9 @@ function Player:Update()
 		self.cast.ends = 0
 	end
 	self.execute_remains = max(self.cast.ends - self.ctime, self.gcd_remains)
-	if self.channel.tick_interval > 0 then
-		self.channel.ticks = self.channel.tick_interval > 0 and floor((self.ctime - self.channel.start) / self.channel.tick_interval) or 0
+	if self.channel.tick_count > 1 then
+		self.channel.ticks = ((self.ctime - self.channel.start) / self.channel.tick_interval) - self.channel.ticks_extra
+		self.channel.ticks_remain = (self.channel.ends - self.ctime) / self.channel.tick_interval
 	end
 	self.mana.regen = GetPowerRegenForPowerType(0)
 	self.mana.current = UnitPower('player', 0) + (self.mana.regen * self.execute_remains)
@@ -1498,6 +1568,14 @@ function Disintegrate:EssenceCost()
 	return Ability.EssenceCost(self)
 end
 
+function Disintegrate:Duration()
+	return Player.haste_factor * self.buff_duration * (NaturalConvergence.known and 0.80 or 1)
+end
+
+function Disintegrate:TickTime()
+	return Player.haste_factor * self.tick_interval * (NaturalConvergence.known and 0.80 or 1)
+end
+
 function Pyre:EssenceCost()
 	if EssenceBurst:Up() then
 		return 0
@@ -1535,7 +1613,7 @@ function TipTheScales:Cooldown()
 end
 
 function Iridescence.blue:Remains()
-	if Player.channel.ability and Player.channel.ability.empowered_spell and Player.channel.ability.color == self.color then
+	if Player.empower.ability and Player.empower.ability.color == self.color then
 		return self:Duration()
 	end
 	local stack = self:Stack()
@@ -1547,7 +1625,7 @@ end
 Iridescence.red.Remains = Iridescence.blue.Remains
 
 function Iridescence.blue:Stack()
-	if Player.channel.ability and Player.channel.ability.empowered_spell and Player.channel.ability.color == self.color then
+	if Player.empower.ability and Player.empower.ability.color == self.color then
 		return self.max_stack
 	end
 	local stack = Ability.Stack(self)
@@ -1559,7 +1637,7 @@ end
 Iridescence.red.Stack = Iridescence.blue.Stack
 
 function PowerSwell:Remains()
-	if Player.channel.ability and Player.channel.ability.empowered_spell then
+	if Player.empower.ability then
 		return self:Duration()
 	end
 	return Ability.Remains(self)
@@ -2194,8 +2272,8 @@ function UI:UpdateDisplay()
 			end
 		end
 	end
-	if Player.channel.ability and Player.channel.ability.empower_to then
-		text_center = format('RANK %d', Player.channel.ability.empower_to)
+	if Player.empower.ability and Player.empower.ability.empower_to then
+		text_center = format('RANK %d', Player.empower.ability.empower_to)
 		dim = Opt.dimmer
 	end
 	if Player.cd then
@@ -2218,11 +2296,22 @@ function UI:UpdateDisplay()
 	if Player.main and Player.main_freecast then
 		border = 'freecast'
 	end
-	if Player.channel.ability and (
-		(Player.channel.early_chain_if and Player.channel.ability == Player.main and not Player.channel.early_chainable) or
-		(Player.channel.interrupt_if and Player.channel.ability ~= Player.main and not Player.channel.interruptible)
-	) then
+	if Player.channel.tick_count > 0 then
 		dim = Opt.dimmer
+		if Player.channel.tick_count > 1 then
+			local ctime = GetTime()
+			local channel = Player.channel
+			channel.ticks = ((ctime - channel.start) / channel.tick_interval) - channel.ticks_extra
+			channel.ticks_remain = (channel.ends - ctime) / channel.tick_interval
+			text_center = format('TICKS %.1f', max(0, channel.ticks))
+			if channel.ability == Player.main then
+				if channel.ticks_remain < 1 or channel.early_chainable then
+					dim = false
+				end
+			elseif channel.interruptible then
+				dim = false
+			end
+		end
 	end
 	if border ~= badDragonPanel.borderOverlay then
 		badDragonPanel.borderOverlay = border
@@ -2479,51 +2568,21 @@ function events:UNIT_SPELLCAST_SUCCEEDED(unitId, castGUID, spellId)
 	end
 end
 
-function events:UNIT_SPELLCAST_CHANNEL_START(unitId, castGUID, spellId)
-	if unitId ~= 'player' then
-		return
-	end
-	local _, _, _, start, ends = UnitChannelInfo(unitId)
-	Player.channel.ability = abilities.bySpellId[spellId]
-	Player.channel.ticks = 0
-	if start and ends then
-		Player.channel.start = start / 1000
-		Player.channel.ends = ends / 1000
-		if Player.channel.ability then
-			Player.channel.tick_interval = (ends - start) / 1000 / (Player.channel.ability.buff_duration / Player.channel.ability.tick_interval)
-		else
-			Player.channel.tick_interval = 0
-		end
-	end
-end
-events.UNIT_SPELLCAST_EMPOWER_START = events.UNIT_SPELLCAST_CHANNEL_START
-
-function events:UNIT_SPELLCAST_CHANNEL_STOP(unitId, castGUID, spellId)
-	if unitId ~= 'player' then
-		return
-	end
-	Player.channel.ability = nil
-	Player.channel.start = 0
-	Player.channel.ends = 0
-	Player.channel.tick_interval = 0
-	Player.channel.ticks = 0
-	Player.channel.interrupt_if = nil
-	Player.channel.interruptible = false
-	Player.channel.early_chain_if = nil
-	Player.channel.early_chainable = false
-end
-events.UNIT_SPELLCAST_EMPOWER_STOP = events.UNIT_SPELLCAST_CHANNEL_STOP
-
 function events:UNIT_SPELLCAST_CHANNEL_UPDATE(unitId, castGUID, spellId)
-	if unitId ~= 'player' then
-		return
-	end
-	local _, _, _, _, ends = UnitChannelInfo(unitId)
-	if ends then
-		Player.channel.ends = ends / 1000
+	if unitId == 'player' then
+		Player:UpdateChannelInfo()
 	end
 end
-events.UNIT_SPELLCAST_EMPOWER_UPDATE = events.UNIT_SPELLCAST_CHANNEL_UPDATE
+events.UNIT_SPELLCAST_CHANNEL_START = events.UNIT_SPELLCAST_CHANNEL_UPDATE
+events.UNIT_SPELLCAST_CHANNEL_STOP = events.UNIT_SPELLCAST_CHANNEL_UPDATE
+
+function events:UNIT_SPELLCAST_EMPOWER_UPDATE(unitId, castGUID, spellId)
+	if unitId == 'player' then
+		Player:UpdateEmpowerInfo()
+	end
+end
+events.UNIT_SPELLCAST_EMPOWER_START = events.UNIT_SPELLCAST_EMPOWER_UPDATE
+events.UNIT_SPELLCAST_EMPOWER_STOP = events.UNIT_SPELLCAST_EMPOWER_UPDATE
 
 function events:PLAYER_REGEN_DISABLED()
 	Player.combat_start = GetTime() - Player.time_diff
