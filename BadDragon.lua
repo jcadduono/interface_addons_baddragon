@@ -988,8 +988,8 @@ LivingFlame.mana_cost = 2
 LivingFlame.max_range = 25
 LivingFlame.color = 'red'
 LivingFlame.triggers_combat = true
-LivingFlame:AutoAoe()
 ------ Talents
+local AncientFlame = Ability:Add(369990, true, true, 375583)
 local BlastFurnace = Ability:Add(375510, true, true)
 BlastFurnace.talent_node = 68667
 local FontOfMagic = Ability:Add({375783, 411212}, true, true)
@@ -1771,7 +1771,7 @@ actions.aoe+=/shattering_star,if=buff.essence_burst.stack<buff.essence_burst.max
 actions.aoe+=/firestorm
 actions.aoe+=/pyre,if=talent.volatility&(active_enemies>=4|(talent.charged_blast&!buff.essence_burst.up&!buff.iridescence_blue.up)|(!talent.charged_blast&(!buff.essence_burst.up|!buff.iridescence_blue.up))|(buff.charged_blast.stack>=15)|(talent.raging_inferno&debuff.in_firestorm.up))
 actions.aoe+=/pyre,if=(talent.raging_inferno&debuff.in_firestorm.up)|(active_enemies==3&buff.charged_blast.stack>=15)|active_enemies>=4
-actions.aoe+=/living_flame,if=(!talent.burnout|buff.burnout.up|active_enemies>=4|buff.scarlet_adaptation.up)&buff.leaping_flames.up&!buff.essence_burst.up&essence<essence.max-1
+actions.aoe+=/living_flame,target_if=max:target.health.pct,if=(!talent.burnout|buff.burnout.up|active_enemies>=4|buff.scarlet_adaptation.up&(buff.ancient_flame.up|buff.dragonrage.down))&buff.leaping_flames.up&!buff.essence_burst.up&essence<essence.max-1
 actions.aoe+=/use_item,name=kharnalex_the_first_light,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down&active_enemies<=5
 actions.aoe+=/disintegrate,chain=1,early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=raid_event.movement.in>2|buff.hover.up
 actions.aoe+=/living_flame,if=talent.snapfire&buff.burnout.up
@@ -1813,7 +1813,7 @@ actions.aoe+=/azure_strike
 	) then
 		return Pyre
 	end
-	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Up() and EssenceBurst:Down() and Player.essence.deficit >= 2 and (not Burnout.known or Burnout:Up() or Player.enemies >= 4 or ScarletAdaptation:Up()) then
+	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Up() and EssenceBurst:Down() and Player.essence.deficit >= 2 and (not Burnout.known or Burnout:Up() or Player.enemies >= 4 or (ScarletAdaptation:Up() and (AncientFlame:Up() or Dragonrage:Down()))) then
 		return LivingFlame
 	end
 	if KharnalexTheFirstLight:Usable() and Dragonrage:Down() and ShatteringStar:Down() and Player.enemies <= 5 then
@@ -1855,7 +1855,7 @@ actions.st+=/disintegrate,chain=1,early_chain_if=evoker.use_early_chaining&buff.
 actions.st+=/firestorm,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down
 actions.st+=/deep_breath,if=!buff.dragonrage.up&active_enemies>=2&((raid_event.adds.in>=120&!talent.onyx_legacy)|(raid_event.adds.in>=60&talent.onyx_legacy))
 actions.st+=/deep_breath,if=!buff.dragonrage.up&talent.imminent_destruction&!debuff.shattering_star_debuff.up
-actions.st+=/living_flame,if=!buff.dragonrage.up|(buff.iridescence_red.remains>execute_time|buff.scarlet_adaptation.up|buff.iridescence_blue.up)&active_enemies==1
+actions.st+=/living_flame,if=!buff.dragonrage.up|(buff.iridescence_red.remains>execute_time|buff.scarlet_adaptation.up&buff.ancient_flame.up|buff.iridescence_blue.up)&active_enemies==1
 actions.st+=/verdant_embrace,if=talent.ancient_flame&!buff.dragonrage.up
 actions.st+=/azure_strike
 ]]
@@ -1914,7 +1914,7 @@ actions.st+=/azure_strike
 	if DeepBreath:Usable() and Player.enemies > 1 and Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()) then
 		UseCooldown(DeepBreath)
 	end
-	if LivingFlame:Usable() and (Dragonrage:Down() or (Player.enemies <= 1 and (Iridescence.red:Remains() > LivingFlame:CastTime() or ScarletAdaptation:Up() or Iridescence.blue:Up()))) then
+	if LivingFlame:Usable() and (Dragonrage:Down() or (Player.enemies <= 1 and (Iridescence.red:Remains() > LivingFlame:CastTime() or (ScarletAdaptation:Up() and AncientFlame:Up()) or Iridescence.blue:Up()))) then
 		return LivingFlame
 	end
 	if AzureStrike:Usable() then
