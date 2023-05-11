@@ -1553,6 +1553,9 @@ function EssenceBurst:Stack()
 	local stack = Ability.Stack(self)
 	if LivingFlame:Casting() and Dragonrage:Up() then
 		stack = stack + 1
+		if LeapingFlames.known then
+			stack = stack + min(Player.enemies - 1, Ability.Stack(LeapingFlames))
+		end
 	end
 	return min(self:MaxStack(), stack)
 end
