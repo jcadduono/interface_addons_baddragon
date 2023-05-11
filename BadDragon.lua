@@ -1724,7 +1724,7 @@ actions.precombat+=/living_flame,if=!talent.firestorm
 		if Firestorm:Usable() and Dragonrage:Down() then
 			return Firestorm
 		end
-		if LivingFlame:Usable() and Dragonrage:Down() then
+		if Target.boss and LivingFlame:Usable() and Dragonrage:Down() then
 			return LivingFlame
 		end
 	else
@@ -1842,7 +1842,7 @@ actions.st=use_item,name=kharnalex_the_first_light,if=!buff.dragonrage.up&debuff
 actions.st+=/hover,use_off_gcd=1,if=raid_event.movement.in<2&!buff.hover.up
 actions.st+=/firestorm,if=buff.snapfire.up
 actions.st+=/dragonrage,if=cooldown.fire_breath.remains<4&cooldown.eternity_surge.remains<10&target.time_to_die>=32|fight_remains<30
-actions.st+=/tip_the_scales,if=buff.dragonrage.up&(cooldown.eternity_surge.up&!cooldown.fire_breath.up&!talent.everburning_flame)|(talent.everburning_flame&cooldown.fire_breath.up)
+actions.st+=/tip_the_scales,if=buff.dragonrage.up&(((!talent.font_of_magic|talent.everburning_flame)&cooldown.fire_breath.up&!cooldown.eternity_surge.up)|(!talent.everburning_flame&talent.font_of_magic&cooldown.eternity_surge.up&!cooldown.fire_breath.up)|buff.dragonrage.remains<variable.r1_cast_time&(cooldown.fire_breath.remains<buff.dragonrage.remains|cooldown.eternity_surge.remains<buff.dragonrage.remains))
 actions.st+=/call_action_list,name=fb,if=set_bonus.tier30_4pc&(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.power_swell.remains<variable.r1_cast_time|buff.bloodlust.up|buff.power_infusion.up)&(buff.blazing_shards.remains<variable.r1_cast_time|buff.dragonrage.up))&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
 actions.st+=/call_action_list,name=fb,if=!set_bonus.tier30_4pc&(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
 actions.st+=/shattering_star,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
@@ -1872,7 +1872,7 @@ actions.st+=/azure_strike
 	if Dragonrage:Usable() and Dragonrage:Down() and ((FireBreath:Ready(4) and EternitySurge:Ready(10) and Target.timeToDie >= 32) or (Target.boss and Target.timeToDie < 30)) then
 		UseCooldown(Dragonrage)
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and ((FeedTheFlames.known and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (Dragonrage:Remains() > FireBreath:Cooldown() or Dragonrage:Remains() > EternitySurge:Cooldown()))) then
+	if TipTheScales:Usable() and Dragonrage:Up() and (((not FontOfMagic.known or EverburningFlame.known) and FireBreath:Ready() and not EternitySurge:Ready()) or (not EverburningFlame.known and FontOfMagic.known and EternitySurge:Ready() and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (FireBreath:Ready(Dragonrage:Remains()) or EternitySurge:Ready(Dragonrage:Remains())))) then
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
@@ -2708,6 +2708,7 @@ function events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	events:PLAYER_REGEN_ENABLED()
 	events:UNIT_HEALTH('player')
 	UI.OnResourceFrameShow()
+	Target:Update()
 	Player:Update()
 end
 
