@@ -2295,7 +2295,7 @@ function UI:UpdateDisplay()
 				text_center = format('%.1f', react)
 			end
 		end
-		if Player.main.freecast then
+		if Player.main_freecast then
 			border = 'freecast'
 		end
 	end
