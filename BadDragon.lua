@@ -2342,7 +2342,7 @@ function UI:UpdateDisplay()
 			local channel = Player.channel
 			channel.ticks = ((ctime - channel.start) / channel.tick_interval) - channel.ticks_extra
 			channel.ticks_remain = (channel.ends - ctime) / channel.tick_interval
-			text_center = format('TICKS\n%.1fs', max(0, channel.ticks))
+			text_center = format('TICKS\n%.1f', max(0, channel.ticks))
 			if channel.ability == Player.main then
 				if channel.ticks_remain < 1 or channel.early_chainable then
 					dim = false
