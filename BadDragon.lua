@@ -771,7 +771,7 @@ function Ability:Casting()
 end
 
 function Ability:Channeling()
-	return Player.channel.ability == self
+	return Player.channel.ability == self or (self.empowered_spell and Player.empower.ability == self)
 end
 
 function Ability:CastTime()
@@ -1027,7 +1027,7 @@ LivingFlame.triggers_combat = true
 local AncientFlame = Ability:Add(369990, true, true, 375583)
 local BlastFurnace = Ability:Add(375510, true, true)
 BlastFurnace.talent_node = 68667
-local FontOfMagic = Ability:Add({375783, 411212}, true, true)
+local FontOfMagic = Ability:Add({375783, 408083, 411212}, true, true)
 local LeapingFlames = Ability:Add(369939, true, true, 370901)
 LeapingFlames.buff_duration = 30
 local NaturalConvergence = Ability:Add(369913, false, true)
@@ -1122,8 +1122,61 @@ Snapfire.buff_duration = 15
 local Volatility = Ability:Add(369089, false, true)
 Volatility.talent_node = 68647
 ------ Procs
-local EssenceBurst = Ability:Add(359565, true, true, 359618)
-EssenceBurst.buff_duration = 15
+local EssenceBurstDevastation = Ability:Add(359565, true, true, 359618)
+EssenceBurstDevastation.buff_duration = 15
+---- Preservation
+------ Talents
+local BlisteringScales = Ability:Add(360827, true, true)
+BlisteringScales.cooldown_duration = 30
+BlisteringScales.buff_duration = 600
+BlisteringScales.color = 'black'
+local BreathOfEons = Ability:Add(403631, true, true)
+BreathOfEons.cooldown_duration = 120
+BreathOfEons.buff_duration = 6
+BreathOfEons.color = 'bronze'
+BreathOfEons.triggers_combat = true
+local EbonMight = Ability:Add(395152, true, true, 395296)
+EbonMight.cooldown_duration = 30
+EbonMight.buff_duration = 10
+EbonMight.color = 'black'
+EbonMight.mana_cost = 1
+local Eruption = Ability:Add(395160, false, true)
+Eruption.essence_cost = 3
+Eruption.max_range = 25
+Eruption.color = 'black'
+Eruption.triggers_combat = true
+Eruption:AutoAoe()
+local Prescience = Ability:Add(409311, true, true)
+Prescience.cooldown_duration = 12
+Prescience.color = 'bronze'
+local PupilOfAlexstrasza = Ability:Add(407814, false, true)
+local TemporalWound = Ability:Add(409560, false, true) -- applied by Breath of Eons
+TemporalWound.buff_duration = 10
+TemporalWound.color = 'bronze'
+TemporalWound:AutoAoe(false, 'apply')
+local TimeSkip = Ability:Add(404977, false, true)
+TimeSkip.cooldown_duration = 180
+TimeSkip.buff_duration = 2
+TimeSkip.tick_interval = 2
+TimeSkip.color = 'bronze'
+local Upheaval = Ability:Add(396286, false, true, 396288)
+Upheaval.cooldown_duration = 40
+Upheaval.triggers_combat = true
+Upheaval.empowered_spell = true
+Upheaval.max_empower = 3
+Upheaval.spellId_fom = 408092
+Upheaval.color = 'black'
+Upheaval.triggers_combat = true
+Upheaval:AutoAoe()
+local Volcanism = Ability:Add(406904, false, true)
+------ Procs
+local EssenceBurstAugmentation = Ability:Add(396187, true, true, 392268)
+EssenceBurstAugmentation.buff_duration = 15
+---- Augmentation
+------ Talents
+
+------ Procs
+
 -- Tier set bonuses
 local BlazingShards = Ability:Add(409848, true, true)
 BlazingShards.buff_duration = 5
@@ -1139,6 +1192,8 @@ WingBuffet.cooldown_duration = 90
 -- Class cooldowns
 local PowerInfusion = Ability:Add(10060, true)
 PowerInfusion.buff_duration = 20
+-- Spec dependant ability references
+local EssenceBurst = EssenceBurstDevastation
 -- End Abilities
 
 -- Start Inventory Items
@@ -1351,11 +1406,16 @@ function Player:UpdateKnown()
 		end
 	end
 
+	EssenceBurst = (
+		(EssenceBurstAugmentation.known and EssenceBurstAugmentation) or
+		(EssenceBurstDevastation.known and EssenceBurstDevastation)
+	)
 	DeepBreath.dot.known = DeepBreath.known
 	FireBreath.dot.known = FireBreath.known
 	if FontOfMagic.known then
 		FireBreath.spellId = FireBreath.spellId_fom
 		EternitySurge.spellId = EternitySurge.spellId_fom
+		Upheaval.spellId = Upheaval.spellId_fom
 	end
 	BlazingShards.known = Player.spec == SPEC.DEVASTATION and self.set_bonus.t30 >= 4
 
@@ -1419,7 +1479,7 @@ function Player:UpdateEmpowerInfo()
 	empower.start = start / 1000
 	empower.ends = ends / 1000
 	empower.rank = 0
-	empower.haste_factor = 1 / (1 + (UnitSpellHaste('player') + (FontOfMagic.known and FontOfMagic.spellId == 411212 and 20 or 0)) / 100)
+	empower.haste_factor = 1 / (1 + (UnitSpellHaste('player') + (FontOfMagic.known and (FontOfMagic.spellId == 408083 or FontOfMagic.spellId == 411212) and 20 or 0)) / 100)
 end
 
 function Player:UpdateThreat()
@@ -1474,6 +1534,10 @@ function Player:Update()
 	self.mana.current = clamp(self.mana.current, 0, self.mana.max)
 	self.essence.regen = GetPowerRegenForPowerType(19)
 	self.essence.current = UnitPower('player', 19)
+	if self.cast.ability and self.cast.ability.essence_cost > 0 then
+		self.essence.current = self.essence.current - self.cast.ability:EssenceCost()
+	end
+	self.essence.current = clamp(self.essence.current, 0, self.essence.max)
 	self.essence.deficit = self.essence.max - self.essence.current
 	self.moving = GetUnitSpeed('player') ~= 0
 	self:UpdateThreat()
@@ -1608,27 +1672,44 @@ function Ability:MaxEmpower()
 	return 0
 end
 
-function EssenceBurst:Remains()
-	if LivingFlame:Casting() and Dragonrage:Up() then
+function EssenceBurstDevastation:Remains()
+	if Dragonrage.known and LivingFlame:Casting() and Dragonrage:Up() then
 		return self:Duration()
 	end
 	return Ability.Remains(self)
 end
 
-function EssenceBurst:Stack()
+function EssenceBurstDevastation:Stack()
 	local stack = Ability.Stack(self)
-	if LivingFlame:Casting() and Dragonrage:Up() then
+	if Dragonrage.known and LivingFlame:Casting() and Dragonrage:Up() then
 		stack = stack + 1
 		if LeapingFlames.known then
 			stack = stack + min(Player.enemies - 1, Ability.Stack(LeapingFlames))
 		end
 	end
-	return min(self:MaxStack(), stack)
+	return clamp(stack, 0, self:MaxStack())
 end
 
-function EssenceBurst:MaxStack()
+function EssenceBurstDevastation:MaxStack()
 	return 1 + (EssenceAttunement.known and 1 or 0)
 end
+
+function EssenceBurstAugmentation:Remains()
+	if self:Stack() == 0 then
+		return 0
+	end
+	return Ability.Remains(self)
+end
+
+function EssenceBurstAugmentation:Stack()
+	local stack = Ability.Stack(self)
+	if Eruption.known and Eruption:Casting() then
+		stack = stack - 1
+	end
+	return clamp(stack, 0, self:MaxStack())
+end
+
+EssenceBurstAugmentation.MaxStack = EssenceBurstDevastation.MaxStack
 
 function Disintegrate:EssenceCost()
 	if EssenceBurst:Up() then
@@ -1643,6 +1724,17 @@ end
 
 function Disintegrate:TickTime()
 	return Player.haste_factor * self.tick_interval * (NaturalConvergence.known and 0.80 or 1)
+end
+
+function Eruption:EssenceCost()
+	if EssenceBurst:Up() then
+		return 0
+	end
+	local cost = Ability.EssenceCost(self)
+	if Volcanism.known then
+		cost = cost - 1
+	end
+	return max(0, cost)
 end
 
 function Pyre:EssenceCost()
@@ -1661,7 +1753,7 @@ function Firestorm:Free()
 end
 
 function LivingFlame:Free()
-	return Burnout.known and Burnout:Up()
+	return Burnout:Up()
 end
 
 function LeapingFlames:Remains()
@@ -1712,6 +1804,19 @@ function PowerSwell:Remains()
 	return Ability.Remains(self)
 end
 
+function EbonMight:Remains()
+	local remains = Ability.Remains(self)
+	if remains > 0 then
+		if Eruption:Casting() then
+			remains = remains + 1
+		end
+		if FireBreath:Channeling() or Upheaval:Channeling() then
+			remains = remains + 2
+		end
+	end
+	return remains
+end
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -1742,7 +1847,7 @@ APL[SPEC.DEVASTATION].Main = function(self)
 			UseExtra(EmeraldBlossom)
 		elseif VerdantEmbrace:Usable() then
 			UseExtra(VerdantEmbrace)
-		elseif Burnout.known and LivingFlame:Usable() and Burnout:Up() then
+		elseif LivingFlame:Usable() and Burnout:Up() then
 			UseExtra(LivingFlame)
 		end
 	end
@@ -2091,6 +2196,15 @@ APL[SPEC.PRESERVATION].Main = function(self)
 end
 
 APL[SPEC.AUGMENTATION].Main = function(self)
+	if Player.health.pct < Opt.heal_threshold then
+		if EmeraldBlossom:Usable() then
+			UseExtra(EmeraldBlossom)
+		elseif VerdantEmbrace:Usable() then
+			UseExtra(VerdantEmbrace)
+		elseif LivingFlame:Usable() and Burnout:Up() then
+			UseExtra(LivingFlame)
+		end
+	end
 	if Player:TimeInCombat() == 0 then
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 300 then
 			return BlessingOfTheBronze
@@ -2101,6 +2215,92 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 		end
 		if Player.moving and Hover:Usable() and Hover:Down() then
 			UseExtra(Hover)
+		end
+	end
+	if Prescience:Usable() and EbonMight:Down() then
+		UseCooldown(Prescience)
+	end
+	if BlisteringScales:Usable() and EbonMight:Down() then
+		UseCooldown(BlisteringScales)
+	end
+	if EbonMight:Usable() and EbonMight:Down() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(2)) or (Upheaval.known and Upheaval:Ready(2)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
+		UseCooldown(EbonMight)
+	end
+	if TipTheScales:Usable() and EbonMight:Up() and (FireBreath:Ready() or (FireBreath:Ready(EbonMight:Remains()) and FireBreath:Cooldown() < Upheaval:Cooldown())) then
+		UseCooldown(TipTheScales)
+	end
+	local apl
+	apl = self:fb()
+	if apl then return apl end
+	apl = self:upheaval()
+	if apl then return apl end
+	if BreathOfEons:Usable() and EbonMight:Up() then
+		UseCooldown(BreathOfEons)
+	end
+	if TimeSkip:Usable() and not FireBreath:Ready(12) and not Upheaval:Ready(12) and not BreathOfEons:Ready(20) and not EbonMight:Ready(12) then
+		UseCooldown(TimeSkip)
+	end
+	if Eruption:Usable() and EbonMight:Remains() > Eruption:CastTime() and EbonMight:Remains() < (3 * Player.gcd) and not EbonMight:Ready(5) then
+		return Eruption
+	end
+	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Remains() > LivingFlame:CastTime() and (LeapingFlames:Remains() < (2 * Player.gcd) or (EssenceBurst:Down() and Player.essence.deficit >= 2)) then
+		return LivingFlame
+	end
+	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Remains() < (2 * Player.gcd)) then
+		UseCooldown(Prescience)
+	end
+	if BlisteringScales:Usable() and (Player.group_size > 1 or BlisteringScales:Remains() < (2 * Player.gcd)) then
+		UseCooldown(BlisteringScales)
+	end
+	if Eruption:Usable() and (
+		(EbonMight:Remains() > Eruption:CastTime() and (EbonMight:Remains() > 5 or not EbonMight:Ready(5))) or
+		Player.essence.deficit <= 1 or
+		EssenceBurst:Stack() >= EssenceBurst:MaxStack() or
+		EssenceBurst:Up() and EssenceBurst:Remains() < (2 * Player.gcd)
+	) then
+		return Eruption
+	end
+	if LivingFlame:Usable() and (not Player.moving or Burnout:Up()) and (Player.enemies <= 1 or PupilOfAlexstrasza.known or (ScarletAdaptation:Up() and AncientFlame:Up())) then
+		return LivingFlame
+	end
+	if AzureStrike:Usable() then
+		return AzureStrike
+	end
+	if LivingFlame:Usable() then
+		return LivingFlame
+	end
+end
+
+APL[SPEC.AUGMENTATION].fb = function(self)
+	if FireBreath:Usable() and EbonMight:Remains() > (1 * Player.haste_factor) and (EbonMight:Remains() > 5 or not EbonMight:Ready(10)) then
+		if between(EbonMight:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) or (not LeapingFlames.known and Target.timeToDie > 20) then
+			FireBreath.empower_to = 1
+		elseif between(EbonMight:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor) or (not LeapingFlames.known and Target.timeToDie > 14) then
+			FireBreath.empower_to = 2
+		elseif not FontOfMagic.known or between(EbonMight:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor) or (not LeapingFlames.known and Target.timeToDie > 8) then
+			FireBreath.empower_to = 3
+		else
+			FireBreath.empower_to = 4
+		end
+		if EbonMight:Up() then
+			return FireBreath
+		else
+			UseCooldown(FireBreath)
+		end
+	end
+end
+
+APL[SPEC.AUGMENTATION].upheaval = function(self)
+	if Upheaval:Usable() and EbonMight:Remains() > (1 * Player.haste_factor) and (EbonMight:Remains() > 5 or not EbonMight:Ready(10)) then
+		if Player.enemies <= 4 or between(EbonMight:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) then
+			Upheaval.empower_to = 1
+		else
+			Upheaval.empower_to = 2
+		end
+		if EbonMight:Up() then
+			return Upheaval
+		else
+			UseCooldown(Upheaval)
 		end
 	end
 end
@@ -2290,6 +2490,10 @@ UI.anchor_points = {
 			['above'] = { 'BOTTOM', 'TOP', 0, 36 },
 			['below'] = { 'TOP', 'BOTTOM', 0, -9 }
 		},
+		[SPEC.AUGMENTATION] = {
+			['above'] = { 'BOTTOM', 'TOP', 0, 36 },
+			['below'] = { 'TOP', 'BOTTOM', 0, -9 }
+		},
 	},
 	kui = { -- Kui Nameplates
 		[SPEC.DEVASTATION] = {
@@ -2297,6 +2501,10 @@ UI.anchor_points = {
 			['below'] = { 'TOP', 'BOTTOM', 0, -1 }
 		},
 		[SPEC.PRESERVATION] = {
+			['above'] = { 'BOTTOM', 'TOP', 0, 24 },
+			['below'] = { 'TOP', 'BOTTOM', 0, -1 }
+		},
+		[SPEC.AUGMENTATION] = {
 			['above'] = { 'BOTTOM', 'TOP', 0, 24 },
 			['below'] = { 'TOP', 'BOTTOM', 0, -1 }
 		},
