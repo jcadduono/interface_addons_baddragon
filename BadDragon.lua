@@ -1820,8 +1820,12 @@ end
 function BlisteringScales:CastSuccess(dstGUID)
 	Ability.CastSuccess(self, dstGUID)
 	local _, _, _, _, _, name, realm = GetPlayerInfoByGUID(dstGUID)
-	if name and realm then
-		self.aura_target = name .. '-' .. realm
+	if name and #name > 0 then
+		if realm and #realm > 0 then
+			self.aura_target = name .. '-' .. realm
+		else
+			self.aura_target = name
+		end
 	else
 		self.aura_target = 'player'
 	end
