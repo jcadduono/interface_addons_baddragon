@@ -2233,7 +2233,7 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	if BlisteringScales:Usable() and EbonMight:Down() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
 		UseCooldown(BlisteringScales)
 	end
-	if EbonMight:Usable() and EbonMight:Down() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(2)) or (Upheaval.known and Upheaval:Ready(2)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
+	if EbonMight:Usable() and EbonMight:Refreshable() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(2)) or (Upheaval.known and Upheaval:Ready(2)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
 		UseCooldown(EbonMight)
 	end
 	if TipTheScales:Usable() and EbonMight:Up() and (FireBreath:Ready() or (FireBreath:Ready(EbonMight:Remains()) and FireBreath:Cooldown() < Upheaval:Cooldown())) then
