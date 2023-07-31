@@ -2236,9 +2236,6 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	if EbonMight:Usable() and EbonMight:Refreshable() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(4)) or (Upheaval.known and Upheaval:Ready(4)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
 		UseCooldown(EbonMight)
 	end
-	if TipTheScales:Usable() and EbonMight:Up() and (FireBreath:Ready() or (FireBreath:Ready(EbonMight:Remains()) and FireBreath:Cooldown() < Upheaval:Cooldown())) then
-		UseCooldown(TipTheScales)
-	end
 	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Remains() < (2 * Player.gcd)) then
 		UseCooldown(Prescience)
 	end
@@ -2285,7 +2282,10 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 end
 
 APL[SPEC.AUGMENTATION].fb = function(self)
-	if FireBreath:Usable() and EbonMight:Remains() > (1 * Player.haste_factor) and (EbonMight:Remains() > 5 or not EbonMight:Ready(10)) then
+	if TipTheScales:Usable() and EbonMight:Remains() > 5 and (FireBreath:Ready() or (FireBreath:Ready(2) and FireBreath:Cooldown() < Upheaval:Cooldown())) then
+		UseCooldown(TipTheScales)
+	end
+	if FireBreath:Usable() and ((TipTheScales.known and TipTheScales:Up()) or EbonMight:Remains() > (1 * Player.haste_factor)) and (EbonMight:Remains() > 5 or not EbonMight:Ready(10)) then
 		if between(EbonMight:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) or (not LeapingFlames.known and Target.timeToDie > 20) then
 			FireBreath.empower_to = 1
 		elseif between(EbonMight:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor) or (not LeapingFlames.known and Target.timeToDie > 14) then
