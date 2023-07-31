@@ -2233,11 +2233,14 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	if BlisteringScales:Usable() and EbonMight:Down() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
 		UseCooldown(BlisteringScales)
 	end
-	if EbonMight:Usable() and EbonMight:Refreshable() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(2)) or (Upheaval.known and Upheaval:Ready(2)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
+	if EbonMight:Usable() and EbonMight:Refreshable() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(4)) or (Upheaval.known and Upheaval:Ready(4)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
 		UseCooldown(EbonMight)
 	end
 	if TipTheScales:Usable() and EbonMight:Up() and (FireBreath:Ready() or (FireBreath:Ready(EbonMight:Remains()) and FireBreath:Cooldown() < Upheaval:Cooldown())) then
 		UseCooldown(TipTheScales)
+	end
+	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Remains() < (2 * Player.gcd)) then
+		UseCooldown(Prescience)
 	end
 	local apl
 	apl = self:fb()
@@ -2256,10 +2259,7 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Remains() > LivingFlame:CastTime() and (LeapingFlames:Remains() < (2 * Player.gcd) or (EssenceBurst:Down() and Player.essence.deficit >= 2)) then
 		return LivingFlame
 	end
-	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Remains() < (2 * Player.gcd)) then
-		UseCooldown(Prescience)
-	end
-	if BlisteringScales:Usable() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
+	if BlisteringScales:Usable() and BlisteringScales:Down() then
 		UseCooldown(BlisteringScales)
 	end
 	if Eruption:Usable() and (
@@ -2269,6 +2269,9 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 		EssenceBurst:Up() and EssenceBurst:Remains() < (2 * Player.gcd)
 	) then
 		return Eruption
+	end
+	if BlisteringScales:Usable() and (BlisteringScales:Stack() < 3 or BlisteringScales:Remains() < 10) then
+		UseCooldown(BlisteringScales)
 	end
 	if LivingFlame:Usable() and (not Player.moving or Hover:Up() or Burnout:Up()) and (Player.enemies <= 1 or PupilOfAlexstrasza.known or (ScarletAdaptation:Up() and AncientFlame:Up())) then
 		return LivingFlame
