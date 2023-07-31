@@ -2270,7 +2270,7 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	) then
 		return Eruption
 	end
-	if LivingFlame:Usable() and (not Player.moving or Burnout:Up()) and (Player.enemies <= 1 or PupilOfAlexstrasza.known or (ScarletAdaptation:Up() and AncientFlame:Up())) then
+	if LivingFlame:Usable() and (not Player.moving or Hover:Up() or Burnout:Up()) and (Player.enemies <= 1 or PupilOfAlexstrasza.known or (ScarletAdaptation:Up() and AncientFlame:Up())) then
 		return LivingFlame
 	end
 	if AzureStrike:Usable() then
