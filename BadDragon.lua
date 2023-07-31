@@ -1817,6 +1817,16 @@ function EbonMight:Remains()
 	return remains
 end
 
+function BlisteringScales:CastSuccess(dstGUID)
+	Ability.CastSuccess(self, dstGUID)
+	local _, _, _, _, _, name, realm = GetPlayerInfoByGUID(dstGUID)
+	if name and realm then
+		self.aura_target = name .. '-' .. realm
+	else
+		self.aura_target = 'player'
+	end
+end
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -2220,7 +2230,7 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	if Prescience:Usable() and EbonMight:Down() then
 		UseCooldown(Prescience)
 	end
-	if BlisteringScales:Usable() and EbonMight:Down() then
+	if BlisteringScales:Usable() and EbonMight:Down() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
 		UseCooldown(BlisteringScales)
 	end
 	if EbonMight:Usable() and EbonMight:Down() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(2)) or (Upheaval.known and Upheaval:Ready(2)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
@@ -2249,7 +2259,7 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Remains() < (2 * Player.gcd)) then
 		UseCooldown(Prescience)
 	end
-	if BlisteringScales:Usable() and (Player.group_size > 1 or BlisteringScales:Remains() < (2 * Player.gcd)) then
+	if BlisteringScales:Usable() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
 		UseCooldown(BlisteringScales)
 	end
 	if Eruption:Usable() and (
