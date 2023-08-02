@@ -3,5 +3,5 @@
 ## Notes: Bad Dragon is an addon for evokers that simplifies gameplay and maximizes DPS by doing all the decision making for you
 ## Author: jcadduono @ curseforge.com or Spy#1955 @ BattleTag
 ## SavedVariablesPerCharacter: BadDragon
-## Version: 10.1.5-4
+## Version: 10.1.5-5
 BadDragon.lua
