@@ -2266,10 +2266,10 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 		UseCooldown(BlisteringScales)
 	end
 	if Eruption:Usable() and (
-		(EbonMight:Remains() > Eruption:CastTime() and (EbonMight:Remains() > 5 or not EbonMight:Ready(5))) or
 		Player.essence.deficit <= 1 or
-		EssenceBurst:Stack() >= EssenceBurst:MaxStack() or
-		EssenceBurst:Up() and EssenceBurst:Remains() < (2 * Player.gcd)
+		(EbonMight:Remains() > Eruption:CastTime() and (EbonMight:Remains() > 5 or not EbonMight:Ready(5))) or
+		(EssenceBurst:Stack() >= EssenceBurst:MaxStack() and (EbonMight:Remains() > Eruption:CastTime() or not EbonMight:Ready(2 * Player.gcd))) or
+		(EssenceBurst:Up() and EssenceBurst:Remains() < (2 * Player.gcd))
 	) then
 		return Eruption
 	end
