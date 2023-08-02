@@ -1146,7 +1146,7 @@ Eruption.max_range = 25
 Eruption.color = 'black'
 Eruption.triggers_combat = true
 Eruption:AutoAoe()
-local Prescience = Ability:Add(409311, true, true)
+local Prescience = Ability:Add(409311, true, true, 410089)
 Prescience.cooldown_duration = 12
 Prescience.color = 'bronze'
 local PupilOfAlexstrasza = Ability:Add(407814, false, true)
@@ -2231,16 +2231,18 @@ APL[SPEC.AUGMENTATION].Main = function(self)
 			UseExtra(Hover)
 		end
 	end
-	if Prescience:Usable() and EbonMight:Down() then
-		UseCooldown(Prescience)
+	if EbonMight:Down() then
+		if Prescience:Usable() then
+			UseCooldown(Prescience)
+		end
+		if BlisteringScales:Usable() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
+			UseCooldown(BlisteringScales)
+		end
 	end
-	if BlisteringScales:Usable() and EbonMight:Down() and (BlisteringScales:Stack() < 5 or BlisteringScales:Remains() < 30) then
-		UseCooldown(BlisteringScales)
-	end
-	if EbonMight:Usable() and EbonMight:Refreshable() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack())) and ((FireBreath.known and FireBreath:Ready(4)) or (Upheaval.known and Upheaval:Ready(4)) or ((not FireBreath.known or FireBreath:Ready(20)) and (not Upheaval.known or Upheaval:Ready(20)))) then
+	if EbonMight:Usable() and EbonMight:Refreshable() and (EssenceBurst:Stack() >= EssenceBurst:MaxStack() or Player.essence.deficit <= (2 + EssenceBurst:Stack()) or (Player.essence.current >= 2 and (FireBreath:Ready(Player.gcd * 2) or Upheaval:Ready(Player.gcd * 2)))) then
 		UseCooldown(EbonMight)
 	end
-	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Remains() < (2 * Player.gcd)) then
+	if Prescience:Usable() and (Player.group_size > 1 or Prescience:Refreshable()) then
 		UseCooldown(Prescience)
 	end
 	local apl
