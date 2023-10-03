@@ -1146,6 +1146,7 @@ Eruption.max_range = 25
 Eruption.color = 'black'
 Eruption.triggers_combat = true
 Eruption:AutoAoe()
+local InterwovenThreads = Ability:Add(412713, true, true)
 local Prescience = Ability:Add(409311, true, true, 410089)
 Prescience.cooldown_duration = 12
 Prescience.color = 'bronze'
@@ -1418,6 +1419,9 @@ function Player:UpdateKnown()
 		Upheaval.spellId = Upheaval.spellId_fom
 	end
 	BlazingShards.known = Player.spec == SPEC.DEVASTATION and self.set_bonus.t30 >= 4
+	if InterwovenThreads.known then
+		TimeSkip.known = false
+	end
 
 	Abilities:Update()
 end
@@ -3309,12 +3313,12 @@ SlashCmdList[ADDON] = function(msg, editbox)
 	end
 	if msg[1] == 'hidespec' or startsWith(msg[1], 'spec') then
 		if msg[2] then
-			if startsWith(msg[2], 'h') then
+			if startsWith(msg[2], 'd') then
 				Opt.hide.devastation = not Opt.hide.devastation
 				Events:PLAYER_SPECIALIZATION_CHANGED('player')
 				return Status('Devastation specialization', not Opt.hide.devastation)
 			end
-			if startsWith(msg[2], 'v') then
+			if startsWith(msg[2], 'p') then
 				Opt.hide.preservation = not Opt.hide.preservation
 				Events:PLAYER_SPECIALIZATION_CHANGED('player')
 				return Status('Preservation specialization', not Opt.hide.preservation)
