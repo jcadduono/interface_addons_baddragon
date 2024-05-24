@@ -1,9 +1,23 @@
 local ADDON = 'BadDragon'
+local ADDON_PATH = 'Interface\\AddOns\\' .. ADDON .. '\\'
+
+BINDING_CATEGORY_BADDRAGON = ADDON
+BINDING_NAME_BADDRAGON_TARGETMORE = "Toggle Targets +"
+BINDING_NAME_BADDRAGON_TARGETLESS = "Toggle Targets -"
+BINDING_NAME_BADDRAGON_TARGET1 = "Set Targets to 1"
+BINDING_NAME_BADDRAGON_TARGET2 = "Set Targets to 2"
+BINDING_NAME_BADDRAGON_TARGET3 = "Set Targets to 3"
+BINDING_NAME_BADDRAGON_TARGET4 = "Set Targets to 4"
+BINDING_NAME_BADDRAGON_TARGET5 = "Set Targets to 5+"
+
+local function log(...)
+	print(ADDON, '-', ...)
+end
+
 if select(2, UnitClass('player')) ~= 'EVOKER' then
-	DisableAddOn(ADDON)
+	log('[|cFFFF0000Error|r]', 'Not loading because you are not the correct class! Consider disabling', ADDON, 'for this character.')
 	return
 end
-local ADDON_PATH = 'Interface\\AddOns\\' .. ADDON .. '\\'
 
 -- reference heavily accessed global functions from local scope for performance
 local min = math.min
@@ -15,7 +29,6 @@ local GetSpellCooldown = _G.GetSpellCooldown
 local GetSpellInfo = _G.GetSpellInfo
 local GetTime = _G.GetTime
 local GetUnitSpeed = _G.GetUnitSpeed
-local UnitAttackSpeed = _G.UnitAttackSpeed
 local UnitAura = _G.UnitAura
 local UnitCastingInfo = _G.UnitCastingInfo
 local UnitChannelInfo = _G.UnitChannelInfo
@@ -48,7 +61,6 @@ BadDragon = {}
 local Opt -- use this as a local table reference to BadDragon
 
 SLASH_BadDragon1, SLASH_BadDragon2, SLASH_BadDragon3 = '/bd', '/bad', '/dragon'
-BINDING_HEADER_BADDRAGON = ADDON
 
 local function InitOpts()
 	local function SetDefaults(t, ref)
@@ -185,15 +197,17 @@ local Player = {
 	execute_remains = 0,
 	haste_factor = 1,
 	moving = false,
+	movement_speed = 100,
 	health = {
 		current = 0,
 		max = 100,
 		pct = 100,
 	},
 	mana = {
+		base = 0,
 		current = 0,
-		deficit = 0,
 		max = 100,
+		pct = 100,
 		regen = 0,
 	},
 	essence = {
@@ -236,6 +250,8 @@ local Player = {
 	set_bonus = {
 		t29 = 0, -- Scales of the Awakened
 		t30 = 0, -- Legacy of Obsidian Secrets
+		t31 = 0, -- Werynkeeper's Timeless Vigil
+		t32 = 0, -- Scales of the Awakened (Awakened)
 	},
 	previous_gcd = {},-- list of previous GCD abilities
 	item_use_blacklist = { -- list of item IDs with on-use effects we should mark unusable
@@ -247,10 +263,28 @@ local Player = {
 	main_freecast = false,
 }
 
+-- base mana pool max for each level
+Player.BaseMana = {
+	260,	270,	285,	300,	310,	--  5
+	330,	345,	360,	380,	400,	-- 10
+	430,	465,	505,	550,	595,	-- 15
+	645,	700,	760,	825,	890,	-- 20
+	965,	1050,	1135,	1230,	1335,	-- 25
+	1445,	1570,	1700,	1845,	2000,	-- 30
+	2165,	2345,	2545,	2755,	2990,	-- 35
+	3240,	3510,	3805,	4125,	4470,	-- 40
+	4845,	5250,	5690,	6170,	6685,	-- 45
+	7245,	7855,	8510,	9225,	10000,	-- 50
+	11745,	13795,	16205,	19035,	22360,	-- 55
+	26265,	30850,	36235,	42565,	50000,	-- 60
+	58730,	68985,	81030,	95180,	111800,	-- 65
+	131325,	154255,	181190,	212830,	250000,	-- 70
+}
+
 -- current target information
 local Target = {
 	boss = false,
-	guid = 0,
+	dummy = false,
 	health = {
 		current = 0,
 		loss_per_sec = 0,
@@ -262,134 +296,17 @@ local Target = {
 	estimated_range = 30,
 }
 
-local badDragonPanel = CreateFrame('Frame', 'badDragonPanel', UIParent)
-badDragonPanel:SetPoint('CENTER', 0, -169)
-badDragonPanel:SetFrameStrata('BACKGROUND')
-badDragonPanel:SetSize(64, 64)
-badDragonPanel:SetMovable(true)
-badDragonPanel:SetUserPlaced(true)
-badDragonPanel:RegisterForDrag('LeftButton')
-badDragonPanel:SetScript('OnDragStart', badDragonPanel.StartMoving)
-badDragonPanel:SetScript('OnDragStop', badDragonPanel.StopMovingOrSizing)
-badDragonPanel:Hide()
-badDragonPanel.icon = badDragonPanel:CreateTexture(nil, 'BACKGROUND')
-badDragonPanel.icon:SetAllPoints(badDragonPanel)
-badDragonPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-badDragonPanel.border = badDragonPanel:CreateTexture(nil, 'ARTWORK')
-badDragonPanel.border:SetAllPoints(badDragonPanel)
-badDragonPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-badDragonPanel.border:Hide()
-badDragonPanel.dimmer = badDragonPanel:CreateTexture(nil, 'BORDER')
-badDragonPanel.dimmer:SetAllPoints(badDragonPanel)
-badDragonPanel.dimmer:SetColorTexture(0, 0, 0, 0.6)
-badDragonPanel.dimmer:Hide()
-badDragonPanel.swipe = CreateFrame('Cooldown', nil, badDragonPanel, 'CooldownFrameTemplate')
-badDragonPanel.swipe:SetAllPoints(badDragonPanel)
-badDragonPanel.swipe:SetDrawBling(false)
-badDragonPanel.swipe:SetDrawEdge(false)
-badDragonPanel.text = CreateFrame('Frame', nil, badDragonPanel)
-badDragonPanel.text:SetAllPoints(badDragonPanel)
-badDragonPanel.text.tl = badDragonPanel.text:CreateFontString(nil, 'OVERLAY')
-badDragonPanel.text.tl:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-badDragonPanel.text.tl:SetPoint('TOPLEFT', badDragonPanel, 'TOPLEFT', 2.5, -3)
-badDragonPanel.text.tl:SetJustifyH('LEFT')
-badDragonPanel.text.tr = badDragonPanel.text:CreateFontString(nil, 'OVERLAY')
-badDragonPanel.text.tr:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-badDragonPanel.text.tr:SetPoint('TOPRIGHT', badDragonPanel, 'TOPRIGHT', -2.5, -3)
-badDragonPanel.text.tr:SetJustifyH('RIGHT')
-badDragonPanel.text.bl = badDragonPanel.text:CreateFontString(nil, 'OVERLAY')
-badDragonPanel.text.bl:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-badDragonPanel.text.bl:SetPoint('BOTTOMLEFT', badDragonPanel, 'BOTTOMLEFT', 2.5, 3)
-badDragonPanel.text.bl:SetJustifyH('LEFT')
-badDragonPanel.text.br = badDragonPanel.text:CreateFontString(nil, 'OVERLAY')
-badDragonPanel.text.br:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-badDragonPanel.text.br:SetPoint('BOTTOMRIGHT', badDragonPanel, 'BOTTOMRIGHT', -2.5, 3)
-badDragonPanel.text.br:SetJustifyH('RIGHT')
-badDragonPanel.text.center = badDragonPanel.text:CreateFontString(nil, 'OVERLAY')
-badDragonPanel.text.center:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-badDragonPanel.text.center:SetAllPoints(badDragonPanel.text)
-badDragonPanel.text.center:SetJustifyH('CENTER')
-badDragonPanel.text.center:SetJustifyV('CENTER')
-badDragonPanel.button = CreateFrame('Button', nil, badDragonPanel)
-badDragonPanel.button:SetAllPoints(badDragonPanel)
-badDragonPanel.button:RegisterForClicks('LeftButtonDown', 'RightButtonDown', 'MiddleButtonDown')
-local badDragonPreviousPanel = CreateFrame('Frame', 'badDragonPreviousPanel', UIParent)
-badDragonPreviousPanel:SetFrameStrata('BACKGROUND')
-badDragonPreviousPanel:SetSize(64, 64)
-badDragonPreviousPanel:SetMovable(true)
-badDragonPreviousPanel:SetUserPlaced(true)
-badDragonPreviousPanel:RegisterForDrag('LeftButton')
-badDragonPreviousPanel:SetScript('OnDragStart', badDragonPreviousPanel.StartMoving)
-badDragonPreviousPanel:SetScript('OnDragStop', badDragonPreviousPanel.StopMovingOrSizing)
-badDragonPreviousPanel:Hide()
-badDragonPreviousPanel.icon = badDragonPreviousPanel:CreateTexture(nil, 'BACKGROUND')
-badDragonPreviousPanel.icon:SetAllPoints(badDragonPreviousPanel)
-badDragonPreviousPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-badDragonPreviousPanel.border = badDragonPreviousPanel:CreateTexture(nil, 'ARTWORK')
-badDragonPreviousPanel.border:SetAllPoints(badDragonPreviousPanel)
-badDragonPreviousPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-local badDragonCooldownPanel = CreateFrame('Frame', 'badDragonCooldownPanel', UIParent)
-badDragonCooldownPanel:SetFrameStrata('BACKGROUND')
-badDragonCooldownPanel:SetSize(64, 64)
-badDragonCooldownPanel:SetMovable(true)
-badDragonCooldownPanel:SetUserPlaced(true)
-badDragonCooldownPanel:RegisterForDrag('LeftButton')
-badDragonCooldownPanel:SetScript('OnDragStart', badDragonCooldownPanel.StartMoving)
-badDragonCooldownPanel:SetScript('OnDragStop', badDragonCooldownPanel.StopMovingOrSizing)
-badDragonCooldownPanel:Hide()
-badDragonCooldownPanel.icon = badDragonCooldownPanel:CreateTexture(nil, 'BACKGROUND')
-badDragonCooldownPanel.icon:SetAllPoints(badDragonCooldownPanel)
-badDragonCooldownPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-badDragonCooldownPanel.border = badDragonCooldownPanel:CreateTexture(nil, 'ARTWORK')
-badDragonCooldownPanel.border:SetAllPoints(badDragonCooldownPanel)
-badDragonCooldownPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-badDragonCooldownPanel.dimmer = badDragonCooldownPanel:CreateTexture(nil, 'BORDER')
-badDragonCooldownPanel.dimmer:SetAllPoints(badDragonCooldownPanel)
-badDragonCooldownPanel.dimmer:SetColorTexture(0, 0, 0, 0.6)
-badDragonCooldownPanel.dimmer:Hide()
-badDragonCooldownPanel.swipe = CreateFrame('Cooldown', nil, badDragonCooldownPanel, 'CooldownFrameTemplate')
-badDragonCooldownPanel.swipe:SetAllPoints(badDragonCooldownPanel)
-badDragonCooldownPanel.swipe:SetDrawBling(false)
-badDragonCooldownPanel.swipe:SetDrawEdge(false)
-badDragonCooldownPanel.text = badDragonCooldownPanel:CreateFontString(nil, 'OVERLAY')
-badDragonCooldownPanel.text:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-badDragonCooldownPanel.text:SetAllPoints(badDragonCooldownPanel)
-badDragonCooldownPanel.text:SetJustifyH('CENTER')
-badDragonCooldownPanel.text:SetJustifyV('CENTER')
-local badDragonInterruptPanel = CreateFrame('Frame', 'badDragonInterruptPanel', UIParent)
-badDragonInterruptPanel:SetFrameStrata('BACKGROUND')
-badDragonInterruptPanel:SetSize(64, 64)
-badDragonInterruptPanel:SetMovable(true)
-badDragonInterruptPanel:SetUserPlaced(true)
-badDragonInterruptPanel:RegisterForDrag('LeftButton')
-badDragonInterruptPanel:SetScript('OnDragStart', badDragonInterruptPanel.StartMoving)
-badDragonInterruptPanel:SetScript('OnDragStop', badDragonInterruptPanel.StopMovingOrSizing)
-badDragonInterruptPanel:Hide()
-badDragonInterruptPanel.icon = badDragonInterruptPanel:CreateTexture(nil, 'BACKGROUND')
-badDragonInterruptPanel.icon:SetAllPoints(badDragonInterruptPanel)
-badDragonInterruptPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-badDragonInterruptPanel.border = badDragonInterruptPanel:CreateTexture(nil, 'ARTWORK')
-badDragonInterruptPanel.border:SetAllPoints(badDragonInterruptPanel)
-badDragonInterruptPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-badDragonInterruptPanel.swipe = CreateFrame('Cooldown', nil, badDragonInterruptPanel, 'CooldownFrameTemplate')
-badDragonInterruptPanel.swipe:SetAllPoints(badDragonInterruptPanel)
-badDragonInterruptPanel.swipe:SetDrawBling(false)
-badDragonInterruptPanel.swipe:SetDrawEdge(false)
-local badDragonExtraPanel = CreateFrame('Frame', 'badDragonExtraPanel', UIParent)
-badDragonExtraPanel:SetFrameStrata('BACKGROUND')
-badDragonExtraPanel:SetSize(64, 64)
-badDragonExtraPanel:SetMovable(true)
-badDragonExtraPanel:SetUserPlaced(true)
-badDragonExtraPanel:RegisterForDrag('LeftButton')
-badDragonExtraPanel:SetScript('OnDragStart', badDragonExtraPanel.StartMoving)
-badDragonExtraPanel:SetScript('OnDragStop', badDragonExtraPanel.StopMovingOrSizing)
-badDragonExtraPanel:Hide()
-badDragonExtraPanel.icon = badDragonExtraPanel:CreateTexture(nil, 'BACKGROUND')
-badDragonExtraPanel.icon:SetAllPoints(badDragonExtraPanel)
-badDragonExtraPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-badDragonExtraPanel.border = badDragonExtraPanel:CreateTexture(nil, 'ARTWORK')
-badDragonExtraPanel.border:SetAllPoints(badDragonExtraPanel)
-badDragonExtraPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
+-- target dummy unit IDs (count these units as bosses)
+Target.Dummies = {
+	[189617] = true,
+	[189632] = true,
+	[194643] = true,
+	[194644] = true,
+	[194648] = true,
+	[194649] = true,
+	[197833] = true,
+	[198594] = true,
+}
 
 -- Start AoE
 
@@ -552,6 +469,7 @@ function Ability:Add(spellId, buff, player, spellId2)
 		hasted_cooldown = false,
 		hasted_ticks = false,
 		known = false,
+		rank = 0,
 		mana_cost = 0,
 		essence_cost = 0,
 		cooldown_duration = 0,
@@ -613,10 +531,15 @@ function Ability:Remains()
 			if expires == 0 then
 				return 600 -- infinite duration
 			end
-			return max(0, expires - Player.ctime - Player.execute_remains)
+			return max(0, expires - Player.ctime - (self.off_gcd and 0 or Player.execute_remains))
 		end
 	end
 	return 0
+end
+
+function Ability:Expiring(seconds)
+	local remains = self:Remains()
+	return remains > 0 and remains < (seconds or Player.gcd)
 end
 
 function Ability:Refreshable()
@@ -651,7 +574,7 @@ function Ability:Traveling(all)
 	local count = 0
 	for _, cast in next, self.traveling do
 		if all or cast.dstGUID == Target.guid then
-			if Player.time - cast.start < self.max_range / self.velocity then
+			if Player.time - cast.start < self.max_range / self.velocity + (self.travel_delay or 0) then
 				count = count + 1
 			end
 		end
@@ -660,21 +583,21 @@ function Ability:Traveling(all)
 end
 
 function Ability:TravelTime()
-	return Target.estimated_range / self.velocity
+	return Target.estimated_range / self.velocity + (self.travel_delay or 0)
 end
 
 function Ability:Ticking()
 	local count, ticking = 0, {}
 	if self.aura_targets then
 		for guid, aura in next, self.aura_targets do
-			if aura.expires - Player.time > Player.execute_remains then
+			if aura.expires - Player.time > (self.off_gcd and 0 or Player.execute_remains) then
 				ticking[guid] = true
 			end
 		end
 	end
 	if self.traveling then
 		for _, cast in next, self.traveling do
-			if Player.time - cast.start < self.max_range / self.velocity then
+			if Player.time - cast.start < self.max_range / self.velocity + (self.travel_delay or 0) then
 				ticking[cast.dstGUID] = true
 			end
 		end
@@ -683,6 +606,48 @@ function Ability:Ticking()
 		count = count + 1
 	end
 	return count
+end
+
+function Ability:HighestRemains()
+	local highest
+	if self.traveling then
+		for _, cast in next, self.traveling do
+			if Player.time - cast.start < self.max_range / self.velocity then
+				highest = self:Duration()
+			end
+		end
+	end
+	if self.aura_targets then
+		local remains
+		for _, aura in next, self.aura_targets do
+			remains = max(0, aura.expires - Player.time - Player.execute_remains)
+			if remains > 0 and (not highest or remains > highest) then
+				highest = remains
+			end
+		end
+	end
+	return highest or 0
+end
+
+function Ability:LowestRemains()
+	local lowest
+	if self.traveling then
+		for _, cast in next, self.traveling do
+			if Player.time - cast.start < self.max_range / self.velocity then
+				lowest = self:Duration()
+			end
+		end
+	end
+	if self.aura_targets then
+		local remains
+		for _, aura in next, self.aura_targets do
+			remains = max(0, aura.expires - Player.time - Player.execute_remains)
+			if remains > 0 and (not lowest or remains < lowest) then
+				lowest = remains
+			end
+		end
+	end
+	return lowest or 0
 end
 
 function Ability:TickTime()
@@ -701,7 +666,23 @@ function Ability:Cooldown()
 	if start == 0 then
 		return 0
 	end
-	return max(0, duration - (Player.ctime - start) - Player.execute_remains)
+	return max(0, duration - (Player.ctime - start) - (self.off_gcd and 0 or Player.execute_remains))
+end
+
+function Ability:CooldownExpected()
+	if self.last_used == 0 then
+		return self:Cooldown()
+	end
+	if self.cooldown_duration > 0 and self:Casting() then
+		return self:CooldownDuration()
+	end
+	local start, duration = GetSpellCooldown(self.spellId)
+	if start == 0 then
+		return 0
+	end
+	local remains = duration - (Player.ctime - start)
+	local reduction = (Player.time - self.last_used) / (self:CooldownDuration() - remains)
+	return max(0, (remains * reduction) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function Ability:Stack()
@@ -711,14 +692,14 @@ function Ability:Stack()
 		if not id then
 			return 0
 		elseif self:Match(id) then
-			return (expires == 0 or expires - Player.ctime > Player.execute_remains) and count or 0
+			return (expires == 0 or expires - Player.ctime > (self.off_gcd and 0 or Player.execute_remains)) and count or 0
 		end
 	end
 	return 0
 end
 
 function Ability:ManaCost()
-	return self.mana_cost > 0 and (self.mana_cost / 100 * Player.mana.max) or 0
+	return self.mana_cost > 0 and (self.mana_cost / 100 * Player.mana.base) or 0
 end
 
 function Ability:EssenceCost()
@@ -736,7 +717,7 @@ function Ability:ChargesFractional()
 	if charges >= max_charges then
 		return charges
 	end
-	return charges + ((max(0, Player.ctime - recharge_start + Player.execute_remains)) / recharge_time)
+	return charges + ((max(0, Player.ctime - recharge_start + (self.off_gcd and 0 or Player.execute_remains))) / recharge_time)
 end
 
 function Ability:Charges()
@@ -759,7 +740,7 @@ function Ability:FullRechargeTime()
 	if charges >= max_charges then
 		return 0
 	end
-	return (max_charges - charges - 1) * recharge_time + (recharge_time - (Player.ctime - recharge_start) - Player.execute_remains)
+	return (max_charges - charges - 1) * recharge_time + (recharge_time - (Player.ctime - recharge_start) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function Ability:Duration()
@@ -847,6 +828,9 @@ end
 
 function Ability:CastSuccess(dstGUID)
 	self.last_used = Player.time
+	if self.ignore_cast then
+		return
+	end
 	Player.last_ability = self
 	if self.triggers_gcd then
 		Player.previous_gcd[10] = nil
@@ -881,22 +865,29 @@ function Ability:CastLanded(dstGUID, event, missType)
 	if self.traveling then
 		local oldest
 		for guid, cast in next, self.traveling do
-			if Player.time - cast.start >= self.max_range / self.velocity + 0.2 then
+			if Player.time - cast.start >= self.max_range / self.velocity + (self.travel_delay or 0) + 0.2 then
 				self.traveling[guid] = nil -- spell traveled 0.2s past max range, delete it, this should never happen
 			elseif cast.dstGUID == dstGUID and (not oldest or cast.start < oldest.start) then
 				oldest = cast
 			end
 		end
 		if oldest then
-			Target.estimated_range = floor(clamp(self.velocity * max(0, Player.time - oldest.start), 0, self.max_range))
+			Target.estimated_range = floor(clamp(self.velocity * max(0, Player.time - oldest.start - (self.travel_delay or 0)), 0, self.max_range))
 			self.traveling[oldest.guid] = nil
 		end
 	end
 	if self.range_est_start then
-		Target.estimated_range = floor(clamp(self.velocity * (Player.time - self.range_est_start), 5, self.max_range))
+		Target.estimated_range = floor(clamp(self.velocity * (Player.time - self.range_est_start - (self.travel_delay or 0)), 5, self.max_range))
 		self.range_est_start = nil
 	elseif self.max_range < Target.estimated_range then
 		Target.estimated_range = self.max_range
+	end
+	if Opt.auto_aoe and self.auto_aoe then
+		if event == 'SPELL_MISSED' and (missType == 'EVADE' or (missType == 'IMMUNE' and not self.ignore_immune)) then
+			AutoAoe:Remove(dstGUID)
+		elseif event == self.auto_aoe.trigger or (self.auto_aoe.trigger == 'SPELL_AURA_APPLIED' and event == 'SPELL_AURA_REFRESH') then
+			self:RecordTargetHit(dstGUID)
+		end
 	end
 	if Opt.previous and Opt.miss_effect and event == 'SPELL_MISSED' and badDragonPreviousPanel.ability == self then
 		badDragonPreviousPanel.border:SetTexture(ADDON_PATH .. 'misseffect.blp')
@@ -937,7 +928,7 @@ function Ability:ApplyAura(guid)
 	return aura
 end
 
-function Ability:RefreshAura(guid)
+function Ability:RefreshAura(guid, extend)
 	if AutoAoe.blacklist[guid] then
 		return
 	end
@@ -946,14 +937,14 @@ function Ability:RefreshAura(guid)
 		return self:ApplyAura(guid)
 	end
 	local duration = self:Duration()
-	aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + duration))
+	aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + (extend or duration)))
 	return aura
 end
 
-function Ability:RefreshAuraAll()
+function Ability:RefreshAuraAll(extend)
 	local duration = self:Duration()
 	for guid, aura in next, self.aura_targets do
-		aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + duration))
+		aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + (extend or duration)))
 	end
 end
 
@@ -1179,7 +1170,7 @@ EssenceBurstAugmentation.buff_duration = 15
 ------ Procs
 
 -- Tier set bonuses
-local BlazingShards = Ability:Add(409848, true, true)
+local BlazingShards = Ability:Add(409848, true, true) -- Devastation T30/T32 4pc
 BlazingShards.buff_duration = 5
 -- Racials
 local TailSwipe = Ability:Add(368970, false, true)
@@ -1188,12 +1179,14 @@ local WingBuffet = Ability:Add(357214, false, true)
 WingBuffet.cooldown_duration = 90
 -- PvP talents
 
--- Trinket Effects
-
+-- Trinket effects
+local SolarMaelstrom = Ability:Add(422146, false, true) -- Belor'relos
+SolarMaelstrom:AutoAoe()
 -- Class cooldowns
 local PowerInfusion = Ability:Add(10060, true)
-PowerInfusion.buff_duration = 20
--- Spec dependant ability references
+PowerInfusion.buff_duration = 15
+PowerInfusion.cooldown_duration = 120
+-- Aliases
 local EssenceBurst = EssenceBurstDevastation
 -- End Abilities
 
@@ -1209,6 +1202,7 @@ function InventoryItem:Add(itemId)
 		name = name,
 		icon = icon,
 		can_use = false,
+		off_gcd = true,
 	}
 	setmetatable(item, self)
 	inventoryItems[#inventoryItems + 1] = item
@@ -1232,13 +1226,16 @@ function InventoryItem:Count()
 end
 
 function InventoryItem:Cooldown()
-	local startTime, duration
+	local start, duration
 	if self.equip_slot then
-		startTime, duration = GetInventoryItemCooldown('player', self.equip_slot)
+		start, duration = GetInventoryItemCooldown('player', self.equip_slot)
 	else
-		startTime, duration = GetItemCooldown(self.itemId)
+		start, duration = GetItemCooldown(self.itemId)
 	end
-	return startTime == 0 and 0 or duration - (Player.ctime - startTime)
+	if start == 0 then
+		return 0
+	end
+	return max(0, duration - (Player.ctime - start) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function InventoryItem:Ready(seconds)
@@ -1260,12 +1257,28 @@ function InventoryItem:Usable(seconds)
 end
 
 -- Inventory Items
-
+local Healthstone = InventoryItem:Add(5512)
+Healthstone.created_by = CreateHealthstone
+Healthstone.max_charges = 3
 -- Equipment
+local DreambinderLoomOfTheGreatCycle = InventoryItem:Add(208616)
+DreambinderLoomOfTheGreatCycle.cooldown_duration = 120
+DreambinderLoomOfTheGreatCycle.off_gcd = false
+local IridalTheEarthsMaster = InventoryItem:Add(208321)
+IridalTheEarthsMaster.cooldown_duration = 180
+IridalTheEarthsMaster.off_gcd = false
 local KharnalexTheFirstLight = InventoryItem:Add(195519)
 KharnalexTheFirstLight.cooldown_duration = 180
+KharnalexTheFirstLight.off_gcd = false
 local Trinket1 = InventoryItem:Add(0)
 local Trinket2 = InventoryItem:Add(0)
+Trinket.BelorrelosTheSuncaller = InventoryItem:Add(207172)
+Trinket.BelorrelosTheSuncaller.cast_spell = SolarMaelstrom
+Trinket.BelorrelosTheSuncaller.cooldown_duration = 120
+Trinket.BelorrelosTheSuncaller.off_gcd = false
+Trinket.NymuesUnravelingSpindle = InventoryItem:Add(208615)
+Trinket.NymuesUnravelingSpindle.cooldown_duration = 120
+Trinket.NymuesUnravelingSpindle.off_gcd = false
 -- End Inventory Items
 
 -- Start Abilities Functions
@@ -1297,6 +1310,14 @@ end
 -- End Abilities Functions
 
 -- Start Player Functions
+
+function Player:ManaTimeToMax()
+	local deficit = self.mana.max - self.mana.current
+	if deficit <= 0 then
+		return 0
+	end
+	return deficit / self.mana.regen
+end
 
 function Player:TimeInCombat()
 	if self.combat_start > 0 then
@@ -1377,9 +1398,6 @@ function Player:UpdateTime(timeStamp)
 end
 
 function Player:UpdateKnown()
-	self.mana.max = UnitPowerMax('player', 0)
-	self.essence.max = UnitPowerMax('player', 19)
-
 	local node
 	local configId = C_ClassTalents.GetActiveConfigID()
 	for _, ability in next, Abilities.all do
@@ -1418,12 +1436,16 @@ function Player:UpdateKnown()
 		EternitySurge.spellId = EternitySurge.spellId_fom
 		Upheaval.spellId = Upheaval.spellId_fom
 	end
-	BlazingShards.known = Player.spec == SPEC.DEVASTATION and self.set_bonus.t30 >= 4
+	BlazingShards.known = Player.spec == SPEC.DEVASTATION and (self.set_bonus.t30 >= 4 or self.set_bonus.t32 >= 4)
 	if InterwovenThreads.known then
 		TimeSkip.known = false
 	end
 
 	Abilities:Update()
+
+	if APL[self.spec].precombat_variables then
+		APL[self.spec]:precombat_variables()
+	end
 end
 
 function Player:UpdateChannelInfo()
@@ -1446,11 +1468,15 @@ function Player:UpdateChannelInfo()
 		return
 	end
 	local ability = Abilities.bySpellId[spellId]
-	if ability and ability == channel.ability then
-		channel.chained = true
+	if ability then
+		if ability == channel.ability then
+			channel.chained = true
+		end
+		channel.interrupt_if = ability.interrupt_if
 	else
-		channel.ability = ability
+		channel.interrupt_if = nil
 	end
+	channel.ability = ability
 	channel.ticks = 0
 	channel.start = start / 1000
 	channel.ends = ends / 1000
@@ -1501,7 +1527,7 @@ function Player:UpdateThreat()
 end
 
 function Player:Update()
-	local _, start, ends, duration, spellId
+	local _, start, ends, duration, spellId, speed, max_speed
 	self.main =  nil
 	self.cd = nil
 	self.interrupt = nil
@@ -1517,12 +1543,14 @@ function Player:Update()
 		self.cast.ability = Abilities.bySpellId[spellId]
 		self.cast.start = start / 1000
 		self.cast.ends = ends / 1000
+		self.cast.remains = self.cast.ends - self.ctime
 	else
 		self.cast.ability = nil
 		self.cast.start = 0
 		self.cast.ends = 0
+		self.cast.remains = 0
 	end
-	self.execute_remains = max(self.cast.ends - self.ctime, self.gcd_remains)
+	self.execute_remains = max(self.cast.remains, self.gcd_remains)
 	if self.channel.tick_count > 1 then
 		self.channel.ticks = ((self.ctime - self.channel.start) / self.channel.tick_interval) - self.channel.ticks_extra
 		self.channel.ticks_remain = (self.channel.ends - self.ctime) / self.channel.tick_interval
@@ -1532,10 +1560,11 @@ function Player:Update()
 	end
 	self.mana.regen = GetPowerRegenForPowerType(0)
 	self.mana.current = UnitPower('player', 0) + (self.mana.regen * self.execute_remains)
-	if self.cast.ability then
+	if self.cast.ability and self.cast.ability.mana_cost > 0 then
 		self.mana.current = self.mana.current - self.cast.ability:ManaCost()
 	end
 	self.mana.current = clamp(self.mana.current, 0, self.mana.max)
+	self.mana.pct = self.mana.current / self.mana.max * 100
 	self.essence.regen = GetPowerRegenForPowerType(19)
 	self.essence.current = UnitPower('player', 19)
 	if self.cast.ability and self.cast.ability.essence_cost > 0 then
@@ -1543,7 +1572,9 @@ function Player:Update()
 	end
 	self.essence.current = clamp(self.essence.current, 0, self.essence.max)
 	self.essence.deficit = self.essence.max - self.essence.current
-	self.moving = GetUnitSpeed('player') ~= 0
+	speed, max_speed = GetUnitSpeed('player')
+	self.moving = speed ~= 0
+	self.movement_speed = max_speed / 7 * 100
 	self:UpdateThreat()
 
 	trackAuras:Purge()
@@ -1574,7 +1605,6 @@ function Player:Init()
 	badDragonPreviousPanel.ability = nil
 	self.guid = UnitGUID('player')
 	self.name = UnitName('player')
-	self.level = UnitLevel('player')
 	_, self.instance = IsInInstance()
 	Events:GROUP_ROSTER_UPDATE()
 	Events:PLAYER_SPECIALIZATION_CHANGED('player')
@@ -1603,7 +1633,11 @@ function Target:UpdateHealth(reset)
 	self.timeToDieMax = self.health.current / Player.health.max * 10
 	self.health.pct = self.health.max > 0 and (self.health.current / self.health.max * 100) or 100
 	self.health.loss_per_sec = (self.health.history[1] - self.health.current) / 5
-	self.timeToDie = self.health.loss_per_sec > 0 and min(self.timeToDieMax, self.health.current / self.health.loss_per_sec) or self.timeToDieMax
+	self.timeToDie = (
+		(self.dummy and 600) or
+		(self.health.loss_per_sec > 0 and min(self.timeToDieMax, self.health.current / self.health.loss_per_sec)) or
+		self.timeToDieMax
+	)
 end
 
 function Target:Update()
@@ -1613,7 +1647,9 @@ function Target:Update()
 	local guid = UnitGUID('target')
 	if not guid then
 		self.guid = nil
+		self.uid = nil
 		self.boss = false
+		self.dummy = false
 		self.stunnable = true
 		self.classification = 'normal'
 		self.player = false
@@ -1632,27 +1668,33 @@ function Target:Update()
 	end
 	if guid ~= self.guid then
 		self.guid = guid
+		self.uid = tonumber(guid:match('^%w+-%d+-%d+-%d+-%d+-(%d+)') or 0)
 		self:UpdateHealth(true)
 	end
 	self.boss = false
+	self.dummy = false
 	self.stunnable = true
 	self.classification = UnitClassification('target')
 	self.player = UnitIsPlayer('target')
-	self.level = UnitLevel('target')
 	self.hostile = UnitCanAttack('player', 'target') and not UnitIsDead('target')
+	self.level = UnitLevel('target')
+	if self.level == -1 then
+		self.level = Player.level + 3
+	end
 	if not self.player and self.classification ~= 'minus' and self.classification ~= 'normal' then
-		if self.level == -1 or (Player.instance == 'party' and self.level >= Player.level + 2) then
-			self.boss = true
-			self.stunnable = false
-		elseif Player.instance == 'raid' or (self.health.max > Player.health.max * 10) then
-			self.stunnable = false
-		end
+		self.boss = self.level >= (Player.level + 3)
+		self.stunnable = self.level < (Player.level + 2)
+	end
+	if self.Dummies[self.uid] then
+		self.boss = true
+		self.dummy = true
 	end
 	if self.hostile or Opt.always_on then
 		UI:UpdateCombat()
 		badDragonPanel:Show()
 		return true
 	end
+	UI:Disappear()
 end
 
 function Target:TimeToPct(pct)
@@ -1833,6 +1875,10 @@ function BlisteringScales:CastSuccess(dstGUID)
 	else
 		self.aura_target = 'player'
 	end
+end
+
+function IridalTheEarthsMaster:Usable(...)
+	return Target.health.pct < 35 and InventoryItem.Usable(self, ...)
 end
 
 -- End Ability Modifications
@@ -2432,7 +2478,7 @@ function UI:CreateOverlayGlows()
 			end
 		end
 	end
-	UI:UpdateGlowColorAndScale()
+	self:UpdateGlowColorAndScale()
 end
 
 function UI:UpdateGlows()
@@ -2468,6 +2514,18 @@ end
 
 function UI:UpdateDraggable()
 	local draggable = not (Opt.locked or Opt.snap or Opt.aoe)
+	badDragonPanel:SetMovable(not Opt.snap)
+	badDragonPreviousPanel:SetMovable(not Opt.snap)
+	badDragonCooldownPanel:SetMovable(not Opt.snap)
+	badDragonInterruptPanel:SetMovable(not Opt.snap)
+	badDragonExtraPanel:SetMovable(not Opt.snap)
+	if not Opt.snap then
+		badDragonPanel:SetUserPlaced(true)
+		badDragonPreviousPanel:SetUserPlaced(true)
+		badDragonCooldownPanel:SetUserPlaced(true)
+		badDragonInterruptPanel:SetUserPlaced(true)
+		badDragonExtraPanel:SetUserPlaced(true)
+	end
 	badDragonPanel:EnableMouse(draggable or Opt.aoe)
 	badDragonPanel.button:SetShown(Opt.aoe)
 	badDragonPreviousPanel:EnableMouse(draggable)
@@ -2583,12 +2641,20 @@ function UI:Disappear()
 	Player.cd = nil
 	Player.interrupt = nil
 	Player.extra = nil
-	UI:UpdateGlows()
+	self:UpdateGlows()
+end
+
+function UI:Reset()
+	badDragonPanel:ClearAllPoints()
+	badDragonPanel:SetPoint('CENTER', 0, -169)
+	self:SnapAllPanels()
 end
 
 function UI:UpdateDisplay()
 	Timer.display = 0
-	local border, dim, dim_cd, border, text_center, text_cd, color_center
+	local border, dim, dim_cd, text_cd, text_center
+	local channel = Player.channel
+	local empower = Player.empower
 
 	if Opt.dimmer then
 		dim = not ((not Player.main) or
@@ -2628,48 +2694,34 @@ function UI:UpdateDisplay()
 			dim = Opt.dimmer
 		end
 	end
-	if Player.empower.ability then
+	if empower.ability then
 		dim = Opt.dimmer
 		local ctime = GetTime()
-		local empower = Player.empower
 		empower.rank = floor(clamp((ctime - empower.start - (0.250 * empower.haste_factor)) / (0.750 * empower.haste_factor), 0, empower.ability:MaxEmpower()))
 		if empower.ability.empower_to then
 			text_center = format('RANK %d', empower.ability.empower_to)
 			if empower.rank >= empower.ability.empower_to then
-				color_center = 'green'
+				text_center = '|cFF00FF00' .. text_center
 				dim = false
 			end
 		elseif empower.rank >= 1 then
 			dim = false
 		end
-	elseif Player.channel.tick_count > 0 then
+	elseif channel.ability and not channel.ability.ignore_channel and channel.tick_count > 0 then
 		dim = Opt.dimmer
-		if Player.channel.tick_count > 1 then
+		if channel.tick_count > 1 then
 			local ctime = GetTime()
-			local channel = Player.channel
 			channel.ticks = ((ctime - channel.start) / channel.tick_interval) - channel.ticks_extra
 			channel.ticks_remain = (channel.ends - ctime) / channel.tick_interval
 			text_center = format('TICKS\n%.1f', max(0, channel.ticks))
 			if channel.ability == Player.main then
 				if channel.ticks_remain < 1 or channel.early_chainable then
 					dim = false
-					text_center = 'CHAIN'
-					color_center = 'green'
+					text_center = '|cFF00FF00CHAIN'
 				end
 			elseif channel.interruptible then
 				dim = false
 			end
-		end
-	end
-
-	if color_center ~= badDragonPanel.text.center.color then
-		badDragonPanel.text.center.color = color_center
-		if color_center == 'green' then
-			badDragonPanel.text.center:SetTextColor(0, 1, 0, 1)
-		elseif color_center == 'red' then
-			badDragonPanel.text.center:SetTextColor(1, 0, 0, 1)
-		else
-			badDragonPanel.text.center:SetTextColor(1, 1, 1, 1)
 		end
 	end
 	if border ~= badDragonPanel.border.overlay then
@@ -2754,12 +2806,12 @@ function Events:ADDON_LOADED(name)
 		UI:UpdateAlpha()
 		UI:UpdateScale()
 		if firstRun then
-			print('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
-			print('Type |cFFFFD000' .. SLASH_BadDragon1 .. '|r for a list of commands.')
+			log('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
+			log('Type |cFFFFD000' .. SLASH_BadDragon1 .. '|r for a list of commands.')
 			UI:SnapAllPanels()
 		end
 		if UnitLevel('player') < 10 then
-			print('[|cFFFFD000Warning|r] ' .. ADDON .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
+			log('[|cFFFFD000Warning|r]', ADDON, 'is not designed for players under level 10, and almost certainly will not operate properly!')
 		end
 	end
 end
@@ -2779,6 +2831,7 @@ CombatEvent.TRIGGER = function(timeStamp, event, _, srcGUID, _, _, _, dstGUID, _
 	   e == 'SPELL_CAST_SUCCESS' or
 	   e == 'SPELL_CAST_FAILED' or
 	   e == 'SPELL_DAMAGE' or
+	   e == 'SPELL_ABSORBED' or
 	   e == 'SPELL_ENERGIZE' or
 	   e == 'SPELL_PERIODIC_DAMAGE' or
 	   e == 'SPELL_MISSED' or
@@ -2832,7 +2885,7 @@ CombatEvent.SPELL = function(event, srcGUID, dstGUID, spellId, spellName, spellS
 	end
 	local ability = spellId and Abilities.bySpellId[spellId]
 	if not ability then
-		--print(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', event, type(spellName) == 'string' and spellName or 'Unknown', spellId or 0))
+		--log(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', event, type(spellName) == 'string' and spellName or 'Unknown', spellId or 0))
 		return
 	end
 
@@ -2861,13 +2914,6 @@ CombatEvent.SPELL = function(event, srcGUID, dstGUID, spellId, spellName, spellS
 		end
 		return -- ignore buffs beyond here
 	end
-	if Opt.auto_aoe then
-		if event == 'SPELL_MISSED' and (missType == 'EVADE' or (missType == 'IMMUNE' and not ability.ignore_immune)) then
-			AutoAoe:Remove(dstGUID)
-		elseif ability.auto_aoe and (event == ability.auto_aoe.trigger or ability.auto_aoe.trigger == 'SPELL_AURA_APPLIED' and event == 'SPELL_AURA_REFRESH') then
-			ability:RecordTargetHit(dstGUID)
-		end
-	end
 	if event == 'SPELL_DAMAGE' or event == 'SPELL_ABSORBED' or event == 'SPELL_MISSED' or event == 'SPELL_AURA_APPLIED' or event == 'SPELL_AURA_REFRESH' then
 		ability:CastLanded(dstGUID, event, missType)
 	end
@@ -2895,9 +2941,18 @@ end
 
 function Events:UNIT_HEALTH(unitId)
 	if unitId == 'player' then
-		Player.health.current = UnitHealth('player')
-		Player.health.max = UnitHealthMax('player')
+		Player.health.current = UnitHealth(unitId)
+		Player.health.max = UnitHealthMax(unitId)
 		Player.health.pct = Player.health.current / Player.health.max * 100
+	end
+end
+
+function Events:UNIT_MAXPOWER(unitId)
+	if unitId == 'player' then
+		Player.level = UnitLevel(unitId)
+		Player.mana.base = Player.BaseMana[Player.level]
+		Player.mana.max = UnitPowerMax(unitId, 0)
+		Player.essence.max = UnitPowerMax(unitId, 19)
 	end
 end
 
@@ -2967,6 +3022,9 @@ function Events:PLAYER_REGEN_ENABLED()
 	if Opt.auto_aoe then
 		AutoAoe:Clear()
 	end
+	if APL[Player.spec].precombat_variables then
+		APL[Player.spec]:precombat_variables()
+	end
 end
 
 function Events:PLAYER_EQUIPMENT_CHANGED()
@@ -2999,6 +3057,8 @@ function Events:PLAYER_EQUIPMENT_CHANGED()
 
 	Player.set_bonus.t29 = (Player:Equipped(200378) and 1 or 0) + (Player:Equipped(200380) and 1 or 0) + (Player:Equipped(200381) and 1 or 0) + (Player:Equipped(200382) and 1 or 0) + (Player:Equipped(200383) and 1 or 0)
 	Player.set_bonus.t30 = (Player:Equipped(202486) and 1 or 0) + (Player:Equipped(202487) and 1 or 0) + (Player:Equipped(202488) and 1 or 0) + (Player:Equipped(202489) and 1 or 0) + (Player:Equipped(202491) and 1 or 0)
+	Player.set_bonus.t31 = (Player:Equipped(207225) and 1 or 0) + (Player:Equipped(207226) and 1 or 0) + (Player:Equipped(207227) and 1 or 0) + (Player:Equipped(207228) and 1 or 0) + (Player:Equipped(207230) and 1 or 0)
+	Player.set_bonus.t32 = (Player:Equipped(217176) and 1 or 0) + (Player:Equipped(217177) and 1 or 0) + (Player:Equipped(217178) and 1 or 0) + (Player:Equipped(217179) and 1 or 0) + (Player:Equipped(217180) and 1 or 0)
 
 	Player:UpdateKnown()
 end
@@ -3013,6 +3073,7 @@ function Events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	Events:PLAYER_EQUIPMENT_CHANGED()
 	Events:PLAYER_REGEN_ENABLED()
 	Events:UNIT_HEALTH('player')
+	Events:UNIT_MAXPOWER('player')
 	UI.OnResourceFrameShow()
 	Target:Update()
 	Player:Update()
@@ -3114,7 +3175,7 @@ local function Status(desc, opt, ...)
 	else
 		opt_view = opt and '|cFF00C000On|r' or '|cFFC00000Off|r'
 	end
-	print(ADDON, '-', desc .. ':', opt_view, ...)
+	log(desc .. ':', opt_view, ...)
 end
 
 SlashCmdList[ADDON] = function(msg, editbox)
@@ -3140,7 +3201,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 			else
 				Opt.snap = false
 				Opt.locked = false
-				badDragonPanel:ClearAllPoints()
+				UI:Reset()
 			end
 			UI:UpdateDraggable()
 			UI.OnResourceFrameShow()
@@ -3367,7 +3428,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		end
 		return Status('Show on-use trinkets in cooldown UI', Opt.trinket)
 	end
-	if msg[1] == 'heal' then
+	if startsWith(msg[1], 'he') then
 		if msg[2] then
 			Opt.heal_threshold = clamp(tonumber(msg[2]) or 60, 0, 100)
 		end
@@ -3386,9 +3447,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		return Status('Allow early chaining channeled spells', Opt.use_early_chaining)
 	end
 	if msg[1] == 'reset' then
-		badDragonPanel:ClearAllPoints()
-		badDragonPanel:SetPoint('CENTER', 0, -169)
-		UI:SnapAllPanels()
+		UI:Reset()
 		return Status('Position has been reset to', 'default')
 	end
 	print(ADDON, '(version: |cFFFFD000' .. GetAddOnMetadata(ADDON, 'Version') .. '|r) - Commands:')

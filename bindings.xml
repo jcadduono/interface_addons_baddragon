@@ -1,23 +1,20 @@
 <Bindings>
-	<Binding name="Toggle Targets +" header="BADDRAGON" category="ADDONS">
+	<Binding name="BADDRAGON_TARGETMORE" category="BINDING_CATEGORY_BADDRAGON">
 		BadDragon_ToggleTargetMode()
 	</Binding>
-	<Binding name="Toggle Targets -">
+	<Binding name="BADDRAGON_TARGETLESS" category="BINDING_CATEGORY_BADDRAGON">
 		BadDragon_ToggleTargetModeReverse()
 	</Binding>
-	<Binding name="Set Targets to 1">
+	<Binding name="BADDRAGON_TARGET1" category="BINDING_CATEGORY_BADDRAGON">
 		BadDragon_SetTargetMode(1)
 	</Binding>
-	<Binding name="Set Targets to 2">
+	<Binding name="BADDRAGON_TARGET2" category="BINDING_CATEGORY_BADDRAGON">
 		BadDragon_SetTargetMode(2)
 	</Binding>
-	<Binding name="Set Targets to 3">
+	<Binding name="BADDRAGON_TARGET3" category="BINDING_CATEGORY_BADDRAGON">
 		BadDragon_SetTargetMode(3)
 	</Binding>
-	<Binding name="Set Targets to 4">
+	<Binding name="BADDRAGON_TARGET4" category="BINDING_CATEGORY_BADDRAGON">
 		BadDragon_SetTargetMode(4)
-	</Binding>
-	<Binding name="Set Targets to 5+">
-		BadDragon_SetTargetMode(5)
 	</Binding>
 </Bindings>
