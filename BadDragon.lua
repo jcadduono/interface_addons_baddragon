@@ -264,6 +264,7 @@ local Player = {
 		t30 = 0, -- Legacy of Obsidian Secrets
 		t31 = 0, -- Werynkeeper's Timeless Vigil
 		t32 = 0, -- Scales of the Awakened (Awakened)
+		t33 = 0, -- Destroyer's Scarred Wards
 	},
 	previous_gcd = {},-- list of previous GCD abilities
 	item_use_blacklist = { -- list of item IDs with on-use effects we should mark unusable
@@ -514,7 +515,7 @@ function Ability:Ready(seconds)
 	return self:Cooldown() <= (seconds or 0) and (not self.requires_react or self:React() > (seconds or 0))
 end
 
-function Ability:Usable(seconds, pool)
+function Ability:Usable(seconds)
 	if not self.known then
 		return false
 	end
@@ -757,10 +758,10 @@ function Ability:FullRechargeTime()
 		end
 		charges = charges - 1
 	end
-	if charges >= max_charges then
+	if charges >= info.maxCharges then
 		return 0
 	end
-	return (max_charges - charges - 1) * info.cooldownDuration + (recharge_time - (Player.ctime - info.cooldownStartTime) - (self.off_gcd and 0 or Player.execute_remains))
+	return (info.maxCharges - charges - 1) * info.cooldownDuration + (info.cooldownDuration - (Player.ctime - info.cooldownStartTime) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function Ability:Duration()
@@ -1374,6 +1375,24 @@ function Player:BloodlustActive()
 	end
 end
 
+function Player:Exhausted()
+	local aura
+	for i = 1, 40 do
+		aura = UnitAura('player', i, 'HARMFUL')
+		if not aura then
+			return false
+		elseif (
+			aura.spellId == 57724 or -- Sated (Alliance Shaman)
+			aura.spellId == 57723 or -- Exhaustion (Horde Shaman)
+			aura.spellId == 80354 or -- Temporal Displacement (Mage)
+			aura.spellId == 264689 or-- Fatigued (Hunter)
+			aura.spellId == 390435   -- Exhaustion (Evoker)
+		) then
+			return true
+		end
+	end
+end
+
 function Player:Equipped(itemID, slot)
 	for i = (slot or 1), (slot or 19) do
 		if GetInventoryItemID('player', i) == itemID then
@@ -1649,7 +1668,7 @@ function Target:UpdateHealth(reset)
 		table.remove(self.health.history, 1)
 		self.health.history[25] = self.health.current
 	end
-	self.timeToDieMax = self.health.current / Player.health.max * 10
+	self.timeToDieMax = self.health.current / Player.health.max * (Player.spec == SPEC.DEVASTATION and 20 or 10)
 	self.health.pct = self.health.max > 0 and (self.health.current / self.health.max * 100) or 100
 	self.health.loss_per_sec = (self.health.history[1] - self.health.current) / 5
 	self.timeToDie = (
@@ -3082,6 +3101,7 @@ function Events:PLAYER_EQUIPMENT_CHANGED()
 	Player.set_bonus.t30 = (Player:Equipped(202486) and 1 or 0) + (Player:Equipped(202487) and 1 or 0) + (Player:Equipped(202488) and 1 or 0) + (Player:Equipped(202489) and 1 or 0) + (Player:Equipped(202491) and 1 or 0)
 	Player.set_bonus.t31 = (Player:Equipped(207225) and 1 or 0) + (Player:Equipped(207226) and 1 or 0) + (Player:Equipped(207227) and 1 or 0) + (Player:Equipped(207228) and 1 or 0) + (Player:Equipped(207230) and 1 or 0)
 	Player.set_bonus.t32 = (Player:Equipped(217176) and 1 or 0) + (Player:Equipped(217177) and 1 or 0) + (Player:Equipped(217178) and 1 or 0) + (Player:Equipped(217179) and 1 or 0) + (Player:Equipped(217180) and 1 or 0)
+	Player.set_bonus.t33 = (Player:Equipped(212027) and 1 or 0) + (Player:Equipped(212028) and 1 or 0) + (Player:Equipped(212029) and 1 or 0) + (Player:Equipped(212030) and 1 or 0) + (Player:Equipped(212032) and 1 or 0)
 
 	Player:UpdateKnown()
 end
@@ -3475,7 +3495,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		UI:Reset()
 		return Status('Position has been reset to', 'default')
 	end
-	print(ADDON, '(version: |cFFFFD000' .. GetAddOnMetadata(ADDON, 'Version') .. '|r) - Commands:')
+	print(ADDON, '(version: |cFFFFD000' .. C_AddOns.GetAddOnMetadata(ADDON, 'Version') .. '|r) - Commands:')
 	for _, cmd in next, {
 		'locked |cFF00C000on|r/|cFFC00000off|r - lock the ' .. ADDON .. ' UI so that it can\'t be moved',
 		'snap |cFF00C000above|r/|cFF00C000below|r/|cFFC00000off|r - snap the ' .. ADDON .. ' UI to the Personal Resource Display',
