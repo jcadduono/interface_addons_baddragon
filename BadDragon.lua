@@ -273,6 +273,7 @@ local Player = {
 		[203729] = true, -- Ominous Chromatic Essence
 	},
 	main_freecast = false,
+	mass_up = false,
 }
 
 -- base mana pool max for each level
@@ -1021,6 +1022,7 @@ BlessingOfTheBronze.color = 'bronze'
 local DeepBreath = Ability:Add(357210, true, true)
 DeepBreath.cooldown_duration = 120
 DeepBreath.buff_duration = 6
+DeepBreath.spellId_maneuver = 433874
 DeepBreath.color = 'black'
 DeepBreath.triggers_combat = true
 DeepBreath.dot = Ability:Add(353759, false, true)
@@ -1034,6 +1036,7 @@ Disintegrate.hasted_ticks = true
 Disintegrate.hasted_duration = true
 Disintegrate.color = 'blue'
 Disintegrate.triggers_combat = true
+Disintegrate:AutoAoe()
 local EmeraldBlossom = Ability:Add(355913, true, true)
 EmeraldBlossom.mana_cost = 4.8
 EmeraldBlossom.cooldown_duration = 30
@@ -1062,7 +1065,6 @@ LivingFlame.triggers_combat = true
 ------ Talents
 local AncientFlame = Ability:Add(369990, true, true, 375583)
 local BlastFurnace = Ability:Add(375510, true, true)
-BlastFurnace.talent_node = 68667
 local FontOfMagic = Ability:Add({375783, 408083, 411212}, true, true)
 local LeapingFlames = Ability:Add(369939, true, true, 370901)
 LeapingFlames.buff_duration = 30
@@ -1088,7 +1090,6 @@ local Animosity = Ability:Add(375797, true, true)
 local ArcaneVigor = Ability:Add(386342, true, true)
 local Burnout = Ability:Add(375801, true, true, 375802)
 Burnout.buff_duration = 15
-Burnout.talent_node = 68633
 local Causality = Ability:Add(375777, false, true)
 local ChargedBlast = Ability:Add(370455, true, true, 370454)
 ChargedBlast.buff_duration = 30
@@ -1111,6 +1112,7 @@ EternitySurge.empowered_spell = true
 EternitySurge.max_empower = 3
 EternitySurge:AutoAoe()
 local EternitysSpan = Ability:Add(375757, true, true)
+local EventHorizon = Ability:Add(411164, false, true)
 local EverburningFlame = Ability:Add(370819, true, true)
 local EyeOfInfinity = Ability:Add(411165, false, true)
 local FeedTheFlames = Ability:Add(369846, true, true, 405874)
@@ -1125,6 +1127,8 @@ Firestorm.color = 'red'
 Firestorm.triggers_combat = true
 Firestorm:AutoAoe()
 Firestorm:Track()
+local ImminentDestruction = Ability:Add(370781, true, true, 411055)
+ImminentDestruction.buff_duration = 12
 local Iridescence = Ability:Add(370867, true, true)
 Iridescence.blue = Ability:Add(386399, true, true)
 Iridescence.blue.buff_duration = 10
@@ -1141,11 +1145,9 @@ Pyre.essence_cost = 3
 Pyre.color = 'red'
 Pyre.triggers_combat = true
 Pyre:AutoAoe()
-local RagingInferno = Ability:Add(405659, false, true)
 local RubyEmbers = Ability:Add(365937, false, true)
 RubyEmbers.buff_duration = 12
 local Scintillation = Ability:Add(370821, false, true)
-Scintillation.talent_node = 68629
 local ShatteringStar = Ability:Add(370452, false, true)
 ShatteringStar.cooldown_duration = 15
 ShatteringStar.buff_duration = 4
@@ -1156,7 +1158,7 @@ ShatteringStar:AutoAoe()
 local Snapfire = Ability:Add(370783, true, true, 370818)
 Snapfire.buff_duration = 15
 local Volatility = Ability:Add(369089, false, true)
-Volatility.talent_node = 68647
+Volatility.talent_node = 93283
 ------ Procs
 local EssenceBurstDevastation = Ability:Add(359565, true, true, 359618)
 EssenceBurstDevastation.buff_duration = 15
@@ -1169,6 +1171,7 @@ BlisteringScales.color = 'black'
 local BreathOfEons = Ability:Add(403631, true, true)
 BreathOfEons.cooldown_duration = 120
 BreathOfEons.buff_duration = 6
+BreathOfEons.spellId_maneuver = 442204
 BreathOfEons.color = 'bronze'
 BreathOfEons.triggers_combat = true
 local EbonMight = Ability:Add(395152, true, true, 395296)
@@ -1215,7 +1218,41 @@ EssenceBurstAugmentation.buff_duration = 15
 ------ Procs
 
 -- Hero talents
+---- Chronowarden
 
+---- Flameshaper
+local Engulf = Ability:Add(443328, false, true, 443330)
+Engulf.cooldown_duration = 30
+Engulf.mana_cost = 5
+Engulf.color = 'red'
+Engulf.requires_charge = true
+Engulf.triggers_combat = true
+local Enkindle = Ability:Add(443328, false, true, 444017)
+Enkindle.buff_duration = 8
+Enkindle.tick_interval = 2
+local FanTheFlames = Ability:Add(444318, false, true)
+local TravelingFlame = Ability:Add(444140, false, true)
+---- Scalecommander
+local Bombardments = Ability:Add(434300, false, true, 434473)
+Bombardments.buff_duration = 6
+local DivertedPower = Ability:Add(441219, false, true)
+local ExtendedBattle = Ability:Add(441212, false, true)
+local Maneuverability = Ability:Add(433871, false, true)
+local MassDisintegrate = Ability:Add(436335, true, true, 436336)
+MassDisintegrate.buff_duration = 15
+MassDisintegrate.max_stack = 2
+MassDisintegrate.color = 'black'
+local MassEruption = Ability:Add(438587, true, true, 438588)
+MassEruption.buff_duration = 15
+MassEruption.max_stack = 2
+MassEruption.color = 'black'
+local MeltArmor = Ability:Add(441176, false, true, 441172)
+MeltArmor.buff_duration = 12
+local Onslaught = Ability:Add(441245, false, true)
+local UnrelentingSiege = Ability:Add(441246, true, true, 441248)
+UnrelentingSiege.buff_duration = 600
+UnrelentingSiege.max_stack = 15
+local Wingleader = Ability:Add(441206, false, true)
 -- Tier set bonuses
 
 -- Racials
@@ -1226,8 +1263,7 @@ WingBuffet.cooldown_duration = 90
 -- PvP talents
 
 -- Trinket effects
-local SolarMaelstrom = Ability:Add(422146, false, true) -- Belor'relos
-SolarMaelstrom:AutoAoe()
+
 -- Class cooldowns
 local PowerInfusion = Ability:Add(10060, true)
 PowerInfusion.buff_duration = 15
@@ -1489,6 +1525,10 @@ function Player:UpdateKnown()
 	if InterwovenThreads.known then
 		TimeSkip.known = false
 	end
+	if Maneuverability.known then
+		DeepBreath.spellId = DeepBreath.spellId_maneuver
+		BreathOfEons.spellId = BreathOfEons.spellId_maneuver
+	end
 
 	Abilities:Update()
 
@@ -1633,6 +1673,8 @@ function Player:Update()
 		end
 		AutoAoe:Purge()
 	end
+
+	self.mass_up = MassDisintegrate.known and MassDisintegrate:Up()
 
 	self.main = APL[self.spec]:Main()
 
@@ -1810,7 +1852,11 @@ function Disintegrate:EssenceCost()
 	if EssenceBurst:Up() then
 		return 0
 	end
-	return Ability.EssenceCost(self)
+	local cost = Ability.EssenceCost(self)
+	if ImminentDestruction.known and ImminentDestruction:Up() then
+		cost = cost - 1
+	end
+	return cost
 end
 
 function Disintegrate:Duration()
@@ -1838,6 +1884,9 @@ function Pyre:EssenceCost()
 	end
 	local cost = Ability.EssenceCost(self)
 	if DenseEnergy.known then
+		cost = cost - 1
+	end
+	if ImminentDestruction.known and ImminentDestruction:Up() then
 		cost = cost - 1
 	end
 	return max(0, cost)
@@ -1966,31 +2015,20 @@ actions.precombat=flask
 actions.precombat+=/food
 actions.precombat+=/augmentation
 actions.precombat+=/snapshot_stats
-actions.precombat+=/variable,name=trinket_1_buffs,value=trinket.1.has_buff.intellect|trinket.1.has_buff.mastery|trinket.1.has_buff.versatility|trinket.1.has_buff.haste|trinket.1.has_buff.crit
-actions.precombat+=/variable,name=trinket_2_buffs,value=trinket.2.has_buff.intellect|trinket.2.has_buff.mastery|trinket.2.has_buff.versatility|trinket.2.has_buff.haste|trinket.2.has_buff.crit
-actions.precombat+=/variable,name=trinket_1_sync,op=setif,value=1,value_else=0.5,condition=variable.trinket_1_buffs&(trinket.1.cooldown.duration%%cooldown.dragonrage.duration=0|cooldown.dragonrage.duration%%trinket.1.cooldown.duration=0)
-actions.precombat+=/variable,name=trinket_2_sync,op=setif,value=1,value_else=0.5,condition=variable.trinket_2_buffs&(trinket.2.cooldown.duration%%cooldown.dragonrage.duration=0|cooldown.dragonrage.duration%%trinket.2.cooldown.duration=0)
-actions.precombat+=/variable,name=trinket_1_manual,value=trinket.1.is.spoils_of_neltharus
-actions.precombat+=/variable,name=trinket_2_manual,value=trinket.2.is.spoils_of_neltharus
-actions.precombat+=/variable,name=trinket_1_exclude,value=trinket.1.is.ruby_whelp_shell|trinket.1.is.whispering_incarnate_icon
-actions.precombat+=/variable,name=trinket_2_exclude,value=trinket.2.is.ruby_whelp_shell|trinket.2.is.whispering_incarnate_icon
-actions.precombat+=/variable,name=trinket_priority,op=setif,value=2,value_else=1,condition=!variable.trinket_1_buffs&variable.trinket_2_buffs|variable.trinket_2_buffs&((trinket.2.cooldown.duration%trinket.2.proc.any_dps.duration)*(1.5+trinket.2.has_buff.intellect)*(variable.trinket_2_sync))>((trinket.1.cooldown.duration%trinket.1.proc.any_dps.duration)*(1.5+trinket.1.has_buff.intellect)*(variable.trinket_1_sync))
-actions.precombat+=/variable,name=r1_cast_time,value=1.0*spell_haste
-actions.precombat+=/variable,name=dr_prep_time_aoe,default=4,op=reset
-actions.precombat+=/variable,name=dr_prep_time_st,default=13,op=reset
-actions.precombat+=/variable,name=has_external_pi,value=cooldown.invoke_power_infusion_0.duration>0
-actions.precombat+=/verdant_embrace,if=talent.scarlet_adaptation|talent.ancient_flame
-actions.precombat+=/use_item,name=shadowed_orb_of_torment
-actions.precombat+=/firestorm,if=talent.firestorm
-actions.precombat+=/living_flame,if=!talent.firestorm
+actions.precombat+=/verdant_embrace,if=talent.scarlet_adaptation
+actions.precombat+=/firestorm,if=talent.firestorm&(!talent.engulf|!talent.ruby_embers)
+actions.precombat+=/living_flame,if=!talent.firestorm|talent.engulf&talent.ruby_embers
 ]]
 		if BlessingOfTheBronze:Usable() and BlessingOfTheBronze:Remains() < 300 then
 			return BlessingOfTheBronze
 		end
-		if Firestorm:Usable() and Dragonrage:Down() then
+		if ScarletAdaptation.known and VerdantEmbrace:Usable() and AncientFlame:Down() then
+			UseExtra(VerdanceEmbrace)
+		end
+		if Firestorm:Usable() and (not Engulf.known or not RubyEmbers.known) and Dragonrage:Down() then
 			return Firestorm
 		end
-		if Target.boss and LivingFlame:Usable() and Dragonrage:Down() then
+		if Target.boss and LivingFlame:Usable() and (not Firestorm.known or (Engulf.known and RubyEmbers.known)) and Dragonrage:Down() then
 			return LivingFlame
 		end
 	else
@@ -2003,18 +2041,18 @@ actions.precombat+=/living_flame,if=!talent.firestorm
 	end
 --[[
 actions=potion,if=buff.dragonrage.up&(!cooldown.shattering_star.up|active_enemies>=2)|fight_remains<35
-actions+=/variable,name=next_dragonrage,value=cooldown.dragonrage.remains<?(cooldown.eternity_surge.remains-2*gcd.max)<?(cooldown.fire_breath.remains-gcd.max)
-actions+=/invoke_external_buff,name=power_infusion,if=buff.dragonrage.up&!buff.power_infusion.up&!cooldown.fire_breath.up&!cooldown.shattering_star.up
+actions+=/variable,name=next_dragonrage,value=cooldown.dragonrage.remains<?((cooldown.eternity_surge.remains-8)>?(cooldown.fire_breath.remains-8))
+actions+=/invoke_external_buff,name=power_infusion,if=buff.dragonrage.up&!cooldown.fire_breath.up&!cooldown.shattering_star.up
+actions+=/variable,name=pool_for_id,if=talent.imminent_destruction&talent.melt_armor&talent.maneuverability,default=0,op=set,value=cooldown.deep_breath.remains<8&essence.deficit>=1&!buff.essence_burst.up
 actions+=/quell,use_off_gcd=1,if=target.debuff.casting.react
 actions+=/call_action_list,name=trinkets
 actions+=/run_action_list,name=aoe,if=active_enemies>=3
 actions+=/run_action_list,name=st
 ]]
-	self.dr_prep_time_aoe = 4
-	self.dr_prep_time_st = 13
-	self.use_dragonrage = Target.player or (Target.boss and Target.timeToDie < 30) or Target.timeToDie > (35 - (3 * Player.enemies))
-	self.next_dragonrage = max(Dragonrage:Cooldown(), EternitySurge:Cooldown() - (2 * Player.gcd), FireBreath:Cooldown() - Player.gcd)
 	self.r1_cast_time = 1.0 * Player.haste_factor
+	self.use_dragonrage = Target.player or (Target.boss and Target.timeToDie < 30) or Target.timeToDie > (35 - (3 * Player.enemies))
+	self.next_dragonrage = max(Dragonrage:Cooldown(), min(EternitySurge:Cooldown() - 8, FireBreath:Cooldown() - 8))
+	self.pool_for_id = ImminentDestruction.known and MeltArmor.known and Maneuverability.known and DeepBreath:Ready(8) and Player.essence.deficit >= 1 and EssenceBurst:Down()
 	self:trinkets()
 	if Player.enemies >= 3 then
 		return self:aoe()
@@ -2022,76 +2060,145 @@ actions+=/run_action_list,name=st
 	return self:st()
 end
 
+APL[SPEC.DEVASTATION].precombat_variables = function(self)
+--[[
+actions.precombat+=/variable,name=trinket_1_buffs,value=trinket.1.has_buff.intellect|trinket.1.has_buff.mastery|trinket.1.has_buff.versatility|trinket.1.has_buff.haste|trinket.1.has_buff.crit
+actions.precombat+=/variable,name=trinket_2_buffs,value=trinket.2.has_buff.intellect|trinket.2.has_buff.mastery|trinket.2.has_buff.versatility|trinket.2.has_buff.haste|trinket.2.has_buff.crit
+actions.precombat+=/variable,name=trinket_1_sync,op=setif,value=1,value_else=0.5,condition=variable.trinket_1_buffs&(trinket.1.cooldown.duration%%cooldown.dragonrage.duration=0|cooldown.dragonrage.duration%%trinket.1.cooldown.duration=0)
+actions.precombat+=/variable,name=trinket_2_sync,op=setif,value=1,value_else=0.5,condition=variable.trinket_2_buffs&(trinket.2.cooldown.duration%%cooldown.dragonrage.duration=0|cooldown.dragonrage.duration%%trinket.2.cooldown.duration=0)
+actions.precombat+=/variable,name=trinket_1_manual,value=trinket.1.is.spymasters_web
+actions.precombat+=/variable,name=trinket_2_manual,value=trinket.2.is.spymasters_web
+actions.precombat+=/variable,name=trinket_1_ogcd_cast,value=0
+actions.precombat+=/variable,name=trinket_2_ogcd_cast,value=0
+actions.precombat+=/variable,name=trinket_1_exclude,value=0
+actions.precombat+=/variable,name=trinket_2_exclude,value=0
+actions.precombat+=/variable,name=trinket_priority,op=setif,value=2,value_else=1,condition=!variable.trinket_1_buffs&variable.trinket_2_buffs|variable.trinket_2_buffs&((trinket.2.cooldown.duration%trinket.2.proc.any_dps.duration)*(1.5+trinket.2.has_buff.intellect)*(variable.trinket_2_sync))>((trinket.1.cooldown.duration%trinket.1.proc.any_dps.duration)*(1.5+trinket.1.has_buff.intellect)*(variable.trinket_1_sync))
+actions.precombat+=/variable,name=damage_trinket_priority,op=setif,value=2,value_else=1,condition=!variable.trinket_1_buffs&!variable.trinket_2_buffs&trinket.2.ilvl>=trinket.1.ilvl
+actions.precombat+=/variable,name=r1_cast_time,value=1.0*spell_haste
+actions.precombat+=/variable,name=dr_prep_time_aoe,default=4,op=reset
+actions.precombat+=/variable,name=dr_prep_time_st,default=8,op=reset
+actions.precombat+=/variable,name=has_external_pi,value=cooldown.invoke_power_infusion_0.duration>0
+]]
+	self.dr_prep_time_aoe = 4
+	self.dr_prep_time_st = 8
+	Disintegrate.interrupt_if = nil
+	Disintegrate.early_channel_if = nil
+end
+
 APL[SPEC.DEVASTATION].aoe = function(self)
 --[[
-actions.aoe=shattering_star,target_if=max:target.health.pct,if=cooldown.dragonrage.up
+actions.aoe=shattering_star,target_if=max:target.health.pct,if=cooldown.dragonrage.up&talent.arcane_vigor|talent.eternitys_span&active_enemies<=3
+actions.aoe+=/hover,use_off_gcd=1,if=raid_event.movement.in<6&!buff.hover.up&gcd.remains>=0.5&(buff.mass_disintegrate_stacks.up&talent.mass_disintegrate|active_enemies<=4)
+actions.aoe+=/firestorm,if=buff.snapfire.up
+actions.aoe+=/firestorm,if=talent.feed_the_flames
+actions.aoe+=/call_action_list,name=fb,if=talent.dragonrage&cooldown.dragonrage.up&talent.iridescence
+actions.aoe+=/deep_breath,if=talent.maneuverability&talent.melt_armor
 actions.aoe+=/dragonrage,if=target.time_to_die>=32|fight_remains<30
-actions.aoe+=/tip_the_scales,if=buff.dragonrage.up&(active_enemies<=3+3*talent.eternitys_span|!cooldown.fire_breath.up)
-actions.aoe+=/call_action_list,name=fb,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_aoe|!talent.animosity)&(buff.power_swell.remains<variable.r1_cast_time|buff.dragonrage.up)&(target.time_to_die>=8|fight_remains<30)
-actions.aoe+=/call_action_list,name=es,if=buff.dragonrage.up|!talent.dragonrage|(cooldown.dragonrage.remains>variable.dr_prep_time_aoe&buff.power_swell.remains<variable.r1_cast_time)&(target.time_to_die>=8|fight_remains<30)
-actions.aoe+=/deep_breath,if=!buff.dragonrage.up
-actions.aoe+=/shattering_star,target_if=max:target.health.pct,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
-actions.aoe+=/firestorm
-actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.burnout.up&buff.leaping_flames.up&!buff.essence_burst.up&(essence.deficit>=2|buff.burnout.remains<gcd*2|buff.leaping_flames.remains<gcd*2)
-actions.aoe+=/pyre,target_if=max:target.health.pct,if=talent.volatility&(active_enemies>=4|(talent.charged_blast&!buff.essence_burst.up&!buff.iridescence_blue.up)|(!talent.charged_blast&(!buff.essence_burst.up|!buff.iridescence_blue.up))|(buff.charged_blast.stack>=15)|(talent.raging_inferno&debuff.in_firestorm.up))
-actions.aoe+=/pyre,target_if=max:target.health.pct,if=(talent.raging_inferno&debuff.in_firestorm.up)|(active_enemies==3&buff.charged_blast.stack>=15)|active_enemies>=4
-actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.leaping_flames.remains>cast_time&!buff.essence_burst.up&essence.deficit>=2&(!talent.burnout|buff.burnout.up|(!dot.fire_breath.ticking|cooldown.fire_breath.remains<gcd*2)&(active_enemies>=4|buff.scarlet_adaptation.up&(buff.ancient_flame.up|buff.dragonrage.down)))
-actions.aoe+=/disintegrate,target_if=max:target.health.pct,chain=1,early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=raid_event.movement.in>2|buff.hover.up
+actions.aoe+=/tip_the_scales,if=buff.dragonrage.up&((active_enemies<=3+3*talent.eternitys_span&!talent.engulf)|!cooldown.fire_breath.up)
+actions.aoe+=/call_action_list,name=fb,if=(!talent.dragonrage|buff.dragonrage.up|cooldown.dragonrage.remains>variable.dr_prep_time_aoe|!talent.animosity)&(target.time_to_die>=8|fight_remains<30)
+actions.aoe+=/call_action_list,name=es,if=(!talent.dragonrage|buff.dragonrage.up|cooldown.dragonrage.remains>variable.dr_prep_time_aoe|!talent.animosity)&(target.time_to_die>=8|fight_remains<30)
+actions.aoe+=/deep_breath,if=!buff.dragonrage.up&essence.deficit>3
+actions.aoe+=/shattering_star,target_if=max:target.health.pct,if=buff.essence_burst.stack<buff.essence_burst.max_stack&talent.arcane_vigor|talent.eternitys_span&active_enemies<=3
+actions.aoe+=/engulf,if=dot.fire_breath_damage.ticking&(!talent.shattering_star|debuff.shattering_star_debuff.up)&cooldown.dragonrage.remains>=27
+actions.aoe+=/disintegrate,target_if=min:debuff.bombardments.remains,if=buff.mass_disintegrate_stacks.up&talent.mass_disintegrate&(buff.charged_blast.stack<10|!talent.charged_blast)
+actions.aoe+=/pyre,target_if=max:target.health.pct,if=(active_enemies>=4|talent.volatility)&(cooldown.dragonrage.remains>gcd.max*4|!talent.charged_blast|talent.engulf&(!talent.arcane_intensity|!talent.eternitys_span))&!variable.pool_for_id
+actions.aoe+=/pyre,target_if=max:target.health.pct,if=buff.charged_blast.stack>=12&cooldown.dragonrage.remains>gcd.max*4
+actions.aoe+=/living_flame,target_if=max:target.health.pct,if=(!talent.burnout|buff.burnout.up|cooldown.fire_breath.remains<=gcd.max*5|buff.scarlet_adaptation.up|buff.ancient_flame.up)&buff.leaping_flames.up&!buff.essence_burst.up&essence.deficit>1
+actions.aoe+=/disintegrate,target_if=max:target.health.pct,chain=1,early_chain_if=evoker.use_early_chaining&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=(raid_event.movement.in>2|buff.hover.up)&&!variable.pool_for_id
 actions.aoe+=/living_flame,target_if=max:target.health.pct,if=talent.snapfire&buff.burnout.up
+actions.aoe+=/firestorm
+actions.aoe+=/call_action_list,name=green,if=talent.ancient_flame&!buff.ancient_flame.up&!buff.dragonrage.up
 actions.aoe+=/azure_strike,target_if=max:target.health.pct
 ]]
-	if self.use_dragonrage and Dragonrage:Down() then
-		if ShatteringStar:Usable() and Dragonrage:Ready(Player.gcd) and (ArcaneVigor.known or EssenceBurst:Up()) then
-			return ShatteringStar
-		end
-		if Dragonrage:Usable() then
-			UseCooldown(Dragonrage)
-		end
+	if ShatteringStar:Usable() and (
+		(self.use_dragonrage and Dragonrage:Ready(Player.gcd) and ArcaneVigor.known) or
+		(EternitysSpan.known and Player.enemies <= 3)
+	) then
+		return ShatteringStar
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and (Player.enemies <= (3 + (EternitysSpan.known and 3 or 0)) or not FireBreath:Ready()) then
-		UseCooldown(TipTheScales)
+	if Firestorm:Usable() and (FeedTheFlames.known or (Snapfire.known and Snapfire:Up())) then
+		return Firestorm
 	end
-	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_aoe or not Animosity.known) and (Dragonrage:Up() or (not PowerSwell.known or PowerSwell:Remains() < self.r1_cast_time)) then
+	if Dragonrage.known and self.use_dragonrage and Iridescence.known and FireBreath:Usable() and Dragonrage:Ready(self.r1_cast_time) then
 		local apl = self:fb()
 		if apl then return apl end
 	end
-	if EternitySurge:Usable() and (not Dragonrage.known or Dragonrage:Up() or (self.next_dragonrage > self.dr_prep_time_aoe and (not PowerSwell.known or PowerSwell:Remains() < self.r1_cast_time))) then
+	if Maneuverability.known and MeltArmor.known and DeepBreath:Usable() then
+		UseCooldown(DeepBreath)
+	end
+	if self.use_dragonrage and Dragonrage:Usable() and Dragonrage:Down() and (not Maneuverability.known or not MeltArmor.known or not DeepBreath:Ready()) then
+		UseCooldown(Dragonrage)
+	end
+	if TipTheScales:Usable() and Dragonrage:Up() and ((not Engulf.known and Player.enemies <= (3 + (EternitysSpan.known and 3 or 0))) or not FireBreath:Ready()) then
+		UseCooldown(TipTheScales)
+	end
+	if FireBreath:Usable() and (not Dragonrage.known or not self.use_dragonrage or not Animosity.known or not Dragonrage:Ready(self.dr_prep_time_aoe)) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) then
+		local apl = self:fb()
+		if apl then return apl end
+	end
+	if EternitySurge:Usable() and (not Dragonrage.known or not self.use_dragonrage or not Animosity.known or not Dragonrage:Ready(self.dr_prep_time_aoe)) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) then
 		local apl = self:es()
 		if apl then return apl end
 	end
-	if DeepBreath:Usable() and Dragonrage:Down() then
+	if DeepBreath:Usable() and Dragonrage:Down() and Player.essence.deficit > 3 then
 		UseCooldown(DeepBreath)
 	end
 	if ShatteringStar:Usable() and (not ArcaneVigor.known or EssenceBurst:Stack() < EssenceBurst:MaxStack()) then
 		return ShatteringStar
 	end
-	if Firestorm:Usable() then
-		return Firestorm
+	if Engulf:Usable() and FireBreath:Up() and (not ShatteringStar.known or ShatteringStar:Up()) and (not Dragonrage.known or not self.use_dragonrage or not Dragonrage:Ready(27)) then
+		UseCooldown(Engulf)
 	end
-	if Burnout.known and LeapingFlames.known and LivingFlame:Usable() and Burnout:Up() and LeapingFlames:Up() and EssenceBurst:Down() and (Player.essence.deficit >= 2 or Burnout:Remains() < (Player.gcd * 2) or LeapingFlames:Remains() < (Player.gcd * 2)) then
-		return LivingFlame
+	if MassDisintegrate.known and Disintegrate:Usable() and MassDisintegrate:Up() and (not ChargedBlast.known or ChargedBlast:Stack() < 10) then
+		Disintegrate.interrupt_if = nil
+		Disintegrate.early_chain_if = nil
+		return Disintegrate
 	end
 	if Pyre:Usable() and (
-		Player.enemies >= 4 or
-		(ChargedBlast.known and Player.enemies == 3 and ChargedBlast:Stack() >= 15) or
-		(RagingInferno.known and Firestorm:Up()) or
-		(Volatility.known and ((ChargedBlast.known and (ChargedBlast:Stack() >= 15 or (EssenceBurst:Down() and Iridescence.blue:Down()))) or (not ChargedBlast.known and (EssenceBurst:Down() or Iridescence.blue:Down()))))
+		(not self.pool_for_id and (Player.enemies >= 4 or Volatility.known) and (not Dragonrage.known or not self.use_dragonrage or not Dragonrage:Ready(Player.gcd * 4) or not ChargedBlast.known or (Engulf.known and (not ArcaneIntensity.known or not EternitysSpan.known)))) or
+		(ChargedBlast.known and ChargedBlast:Stack() >= 12 and (not Dragonrage.known or not self.use_dragonrage or not Dragonrage:Ready(Player.gcd * 4)))
 	) then
 		return Pyre
 	end
-	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Remains() > LivingFlame:CastTime() and EssenceBurst:Down() and Player.essence.deficit >= 2 and (not Burnout.known or Burnout:Up() or ((FireBreath.dot:Down() or FireBreath:Ready(Player.gcd * 2)) and (Player.enemies >= 4 or (ScarletAdaptation:Up() and (AncientFlame:Up() or Dragonrage:Down()))))) then
+	if LeapingFlames.known and LivingFlame:Usable() and Player.essence.deficit > 1 and LeapingFlames:Up() and EssenceBurst:Down() and (
+		not Burnout.known or
+		Burnout:Up() or
+		LeapingFlames:Remains() < (Player.gcd * 2) or
+		FireBreath:Ready(Player.gcd * 5) or
+		(ScarletAdaptation.known and ScarletAdaptation:Up()) or
+		(AncientFlame.known and AncientFlame:Up())
+	) then
 		return LivingFlame
 	end
-	if Disintegrate:Usable() and (not Player.moving or Hover:Up()) then
-		Player.channel.interrupt_if = self.channel_interrupt[3]
-		Player.channel.early_chain_if = self.channel_early_chain[3]
+	if Disintegrate:Usable() and not self.pool_for_id and (not Player.moving or Hover:Up()) then
+		Disintegrate.interrupt_if = self.channel_interrupt[3]
+		Disintegrate.early_chain_if = self.channel_early_chain[3]
 		return Disintegrate
 	end
 	if Snapfire.known and Burnout.known and LivingFlame:Usable() and Burnout:Up() then
 		return LivingFlame
 	end
+	if Firestorm:Usable() then
+		return Firestorm
+	end
+	if AncientFlame.known and AncientFlame:Down() and Dragonrage:Down() then
+		self:green()
+	end
 	if AzureStrike:Usable() then
 		return AzureStrike
+	end
+end
+
+APL[SPEC.DEVASTATION].green = function(self)
+--[[
+actions.green=emerald_blossom
+actions.green+=/verdant_embrace
+]]
+	if EmeraldBlossom:Usable() then
+		return UseExtra(EmeraldBlossom)
+	end
+	if VerdantEmbrace:Usable() then
+		return UseExtra(VerdantEmbrace)
 	end
 end
 
@@ -2151,9 +2258,6 @@ actions.st+=/living_flame
 	end
 	if AzureStrike:Usable() and Dragonrage:Up() and Dragonrage:Remains() < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
 		return AzureStrike
-	end
-	if RagingInferno.known and ChargedBlast.known and Pyre:Usable() and Firestorm:Up() and ChargedBlast:Stack() == 20 and Player.enemies >= 2 then
-		return Pyre
 	end
 	if Disintegrate:Usable() then
 		Player.channel.interrupt_if = self.channel_interrupt[2]
@@ -2701,6 +2805,8 @@ function UI:UpdateDisplay()
 			if react > 0 then
 				text_center = format('%.1f', react)
 			end
+		elseif MassDisintegrate.known and Player.mass_up and Player.main == Disintegrate then
+			text_center = 'MASS'
 		end
 		if Player.main_freecast then
 			border = 'freecast'
