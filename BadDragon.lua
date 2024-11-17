@@ -161,7 +161,7 @@ local Abilities = {
 	bySpellId = {},
 	velocity = {},
 	autoAoe = {},
-	trackAuras = {},
+	tracked = {},
 }
 
 -- methods for target tracking / aoe modes
@@ -170,6 +170,9 @@ local AutoAoe = {
 	blacklist = {},
 	ignored_units = {},
 }
+
+-- methods for tracking ticking debuffs on targets
+local TrackedAuras = {}
 
 -- timers for updating combat/display/hp info
 local Timer = {
@@ -260,10 +263,6 @@ local Player = {
 		last_taken = 0,
 	},
 	set_bonus = {
-		t29 = 0, -- Scales of the Awakened
-		t30 = 0, -- Legacy of Obsidian Secrets
-		t31 = 0, -- Werynkeeper's Timeless Vigil
-		t32 = 0, -- Scales of the Awakened (Awakened)
 		t33 = 0, -- Destroyer's Scarred Wards
 	},
 	previous_gcd = {},-- list of previous GCD abilities
@@ -278,20 +277,22 @@ local Player = {
 
 -- base mana pool max for each level
 Player.BaseMana = {
-	260,	270,	285,	300,	310,	--  5
-	330,	345,	360,	380,	400,	-- 10
-	430,	465,	505,	550,	595,	-- 15
-	645,	700,	760,	825,	890,	-- 20
-	965,	1050,	1135,	1230,	1335,	-- 25
-	1445,	1570,	1700,	1845,	2000,	-- 30
-	2165,	2345,	2545,	2755,	2990,	-- 35
-	3240,	3510,	3805,	4125,	4470,	-- 40
-	4845,	5250,	5690,	6170,	6685,	-- 45
-	7245,	7855,	8510,	9225,	10000,	-- 50
-	11745,	13795,	16205,	19035,	22360,	-- 55
-	26265,	30850,	36235,	42565,	50000,	-- 60
-	58730,	68985,	81030,	95180,	111800,	-- 65
-	131325,	154255,	181190,	212830,	250000,	-- 70
+	260,     270,     285,     300,     310,     -- 5
+	330,     345,     360,     380,     400,     -- 10
+	430,     465,     505,     550,     595,     -- 15
+	645,     700,     760,     825,     890,     -- 20
+	965,     1050,    1135,    1230,    1335,    -- 25
+	1445,    1570,    1700,    1845,    2000,    -- 30
+	2165,    2345,    2545,    2755,    2990,    -- 35
+	3240,    3510,    3805,    4125,    4470,    -- 40
+	4845,    5250,    5690,    6170,    6685,    -- 45
+	7245,    7855,    8510,    9225,    10000,   -- 50
+	11745,   13795,   16205,   19035,   22360,   -- 55
+	26265,   30850,   36235,   42565,   50000,   -- 60
+	58730,   68985,   81030,   95180,   111800,  -- 65
+	131325,  154255,  181190,  212830,  250000,  -- 70
+	293650,  344930,  405160,  475910,  559015,  -- 75
+	656630,  771290,  905970,  1064170, 2500000, -- 80
 }
 
 -- current target information
@@ -319,6 +320,14 @@ Target.Dummies = {
 	[194649] = true,
 	[197833] = true,
 	[198594] = true,
+	[219250] = true,
+	[225983] = true,
+	[225984] = true,
+	[225985] = true,
+	[225976] = true,
+	[225977] = true,
+	[225978] = true,
+	[225982] = true,
 }
 
 -- Start AoE
@@ -550,6 +559,10 @@ function Ability:Remains()
 	return 0
 end
 
+function Ability:React()
+	return self:Remains()
+end
+
 function Ability:Expiring(seconds)
 	local remains = self:Remains()
 	return remains > 0 and remains < (seconds or Player.gcd)
@@ -711,12 +724,27 @@ function Ability:Stack()
 	return 0
 end
 
+function Ability:MaxStack()
+	return self.max_stack
+end
+
+function Ability:Capped(deficit)
+	return self:Stack() >= (self:MaxStack() - (deficit or 0))
+end
+
 function Ability:ManaCost()
 	return self.mana_cost > 0 and (self.mana_cost / 100 * Player.mana.base) or 0
 end
 
 function Ability:EssenceCost()
 	return self.essence_cost
+end
+
+function Ability:Free()
+	return (
+		(self.mana_cost > 0 and self:ManaCost() == 0) or
+		(self.essence_cost > 0 and self:EssenceCost() == 0)
+	)
 end
 
 function Ability:ChargesFractional()
@@ -779,6 +807,10 @@ end
 function Ability:CastTime()
 	local info = GetSpellInfo(self.spellId)
 	return info and info.castTime / 1000 or 0
+end
+
+function Ability:CastRegen()
+	return Player.mana.regen * self:CastTime() - self:ManaCost()
 end
 
 function Ability:Previous(n)
@@ -854,9 +886,6 @@ function Ability:CastSuccess(dstGUID)
 		Player.previous_gcd[10] = nil
 		table.insert(Player.previous_gcd, 1, self)
 	end
-	if self.aura_targets and self.requires_react then
-		self:RemoveAura(self.aura_target == 'player' and Player.guid or dstGUID)
-	end
 	if Opt.auto_aoe and self.auto_aoe and self.auto_aoe.trigger == 'SPELL_CAST_SUCCESS' then
 		AutoAoe:Add(dstGUID, true)
 	end
@@ -914,10 +943,8 @@ end
 
 -- Start DoT tracking
 
-local trackAuras = {}
-
-function trackAuras:Purge()
-	for _, ability in next, Abilities.trackAuras do
+function TrackedAuras:Purge()
+	for _, ability in next, Abilities.tracked do
 		for guid, aura in next, ability.aura_targets do
 			if aura.expires <= Player.time then
 				ability:RemoveAura(guid)
@@ -926,13 +953,13 @@ function trackAuras:Purge()
 	end
 end
 
-function trackAuras:Remove(guid)
-	for _, ability in next, Abilities.trackAuras do
+function TrackedAuras:Remove(guid)
+	for _, ability in next, Abilities.tracked do
 		ability:RemoveAura(guid)
 	end
 end
 
-function Ability:TrackAuras()
+function Ability:Track()
 	self.aura_targets = {}
 end
 
@@ -1097,7 +1124,7 @@ Firestorm.max_range = 25
 Firestorm.color = 'red'
 Firestorm.triggers_combat = true
 Firestorm:AutoAoe()
-Firestorm:TrackAuras()
+Firestorm:Track()
 local Iridescence = Ability:Add(370867, true, true)
 Iridescence.blue = Ability:Add(386399, true, true)
 Iridescence.blue.buff_duration = 10
@@ -1187,9 +1214,10 @@ EssenceBurstAugmentation.buff_duration = 15
 
 ------ Procs
 
+-- Hero talents
+
 -- Tier set bonuses
-local BlazingShards = Ability:Add(409848, true, true) -- Devastation T30/T32 4pc
-BlazingShards.buff_duration = 5
+
 -- Racials
 local TailSwipe = Ability:Add(368970, false, true)
 TailSwipe.cooldown_duration = 90
@@ -1278,24 +1306,8 @@ end
 local Healthstone = InventoryItem:Add(5512)
 Healthstone.max_charges = 3
 -- Equipment
-local DreambinderLoomOfTheGreatCycle = InventoryItem:Add(208616)
-DreambinderLoomOfTheGreatCycle.cooldown_duration = 120
-DreambinderLoomOfTheGreatCycle.off_gcd = false
-local IridalTheEarthsMaster = InventoryItem:Add(208321)
-IridalTheEarthsMaster.cooldown_duration = 180
-IridalTheEarthsMaster.off_gcd = false
-local KharnalexTheFirstLight = InventoryItem:Add(195519)
-KharnalexTheFirstLight.cooldown_duration = 180
-KharnalexTheFirstLight.off_gcd = false
 local Trinket1 = InventoryItem:Add(0)
 local Trinket2 = InventoryItem:Add(0)
-Trinket.BelorrelosTheSuncaller = InventoryItem:Add(207172)
-Trinket.BelorrelosTheSuncaller.cast_spell = SolarMaelstrom
-Trinket.BelorrelosTheSuncaller.cooldown_duration = 120
-Trinket.BelorrelosTheSuncaller.off_gcd = false
-Trinket.NymuesUnravelingSpindle = InventoryItem:Add(208615)
-Trinket.NymuesUnravelingSpindle.cooldown_duration = 120
-Trinket.NymuesUnravelingSpindle.off_gcd = false
 -- End Inventory Items
 
 -- Start Abilities Functions
@@ -1304,7 +1316,7 @@ function Abilities:Update()
 	wipe(self.bySpellId)
 	wipe(self.velocity)
 	wipe(self.autoAoe)
-	wipe(self.trackAuras)
+	wipe(self.tracked)
 	for _, ability in next, self.all do
 		if ability.known then
 			self.bySpellId[ability.spellId] = ability
@@ -1318,7 +1330,7 @@ function Abilities:Update()
 				self.autoAoe[#self.autoAoe + 1] = ability
 			end
 			if ability.aura_targets then
-				self.trackAuras[#self.trackAuras + 1] = ability
+				self.tracked[#self.tracked + 1] = ability
 			end
 		end
 	end
@@ -1474,7 +1486,6 @@ function Player:UpdateKnown()
 		EternitySurge.spellId = EternitySurge.spellId_fom
 		Upheaval.spellId = Upheaval.spellId_fom
 	end
-	BlazingShards.known = Player.spec == SPEC.DEVASTATION and (self.set_bonus.t30 >= 4 or self.set_bonus.t32 >= 4)
 	if InterwovenThreads.known then
 		TimeSkip.known = false
 	end
@@ -1615,7 +1626,7 @@ function Player:Update()
 	self.movement_speed = max_speed / 7 * 100
 	self:UpdateThreat()
 
-	trackAuras:Purge()
+	TrackedAuras:Purge()
 	if Opt.auto_aoe then
 		for _, ability in next, Abilities.autoAoe do
 			ability:UpdateTargetsHit()
@@ -1668,7 +1679,7 @@ function Target:UpdateHealth(reset)
 		table.remove(self.health.history, 1)
 		self.health.history[25] = self.health.current
 	end
-	self.timeToDieMax = self.health.current / Player.health.max * (Player.spec == SPEC.DEVASTATION and 20 or 10)
+	self.timeToDieMax = self.health.current / Player.health.max * (Player.spec == SPEC.DEVASTATION and 25 or 15)
 	self.health.pct = self.health.max > 0 and (self.health.current / self.health.max * 100) or 100
 	self.health.loss_per_sec = (self.health.history[1] - self.health.current) / 5
 	self.timeToDie = (
@@ -1915,10 +1926,6 @@ function BlisteringScales:CastSuccess(dstGUID)
 	end
 end
 
-function IridalTheEarthsMaster:Usable(...)
-	return Target.health.pct < 35 and InventoryItem.Usable(self, ...)
-end
-
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -2020,8 +2027,8 @@ APL[SPEC.DEVASTATION].aoe = function(self)
 actions.aoe=shattering_star,target_if=max:target.health.pct,if=cooldown.dragonrage.up
 actions.aoe+=/dragonrage,if=target.time_to_die>=32|fight_remains<30
 actions.aoe+=/tip_the_scales,if=buff.dragonrage.up&(active_enemies<=3+3*talent.eternitys_span|!cooldown.fire_breath.up)
-actions.aoe+=/call_action_list,name=fb,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_aoe|!talent.animosity)&(buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time|buff.dragonrage.up)&(target.time_to_die>=8|fight_remains<30)
-actions.aoe+=/call_action_list,name=es,if=buff.dragonrage.up|!talent.dragonrage|(cooldown.dragonrage.remains>variable.dr_prep_time_aoe&buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time)&(target.time_to_die>=8|fight_remains<30)
+actions.aoe+=/call_action_list,name=fb,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_aoe|!talent.animosity)&(buff.power_swell.remains<variable.r1_cast_time|buff.dragonrage.up)&(target.time_to_die>=8|fight_remains<30)
+actions.aoe+=/call_action_list,name=es,if=buff.dragonrage.up|!talent.dragonrage|(cooldown.dragonrage.remains>variable.dr_prep_time_aoe&buff.power_swell.remains<variable.r1_cast_time)&(target.time_to_die>=8|fight_remains<30)
 actions.aoe+=/deep_breath,if=!buff.dragonrage.up
 actions.aoe+=/shattering_star,target_if=max:target.health.pct,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
 actions.aoe+=/firestorm
@@ -2029,7 +2036,6 @@ actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.burnout.up&bu
 actions.aoe+=/pyre,target_if=max:target.health.pct,if=talent.volatility&(active_enemies>=4|(talent.charged_blast&!buff.essence_burst.up&!buff.iridescence_blue.up)|(!talent.charged_blast&(!buff.essence_burst.up|!buff.iridescence_blue.up))|(buff.charged_blast.stack>=15)|(talent.raging_inferno&debuff.in_firestorm.up))
 actions.aoe+=/pyre,target_if=max:target.health.pct,if=(talent.raging_inferno&debuff.in_firestorm.up)|(active_enemies==3&buff.charged_blast.stack>=15)|active_enemies>=4
 actions.aoe+=/living_flame,target_if=max:target.health.pct,if=buff.leaping_flames.remains>cast_time&!buff.essence_burst.up&essence.deficit>=2&(!talent.burnout|buff.burnout.up|(!dot.fire_breath.ticking|cooldown.fire_breath.remains<gcd*2)&(active_enemies>=4|buff.scarlet_adaptation.up&(buff.ancient_flame.up|buff.dragonrage.down)))
-actions.aoe+=/use_item,name=kharnalex_the_first_light,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down&active_enemies<=5
 actions.aoe+=/disintegrate,target_if=max:target.health.pct,chain=1,early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up),interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up),if=raid_event.movement.in>2|buff.hover.up
 actions.aoe+=/living_flame,target_if=max:target.health.pct,if=talent.snapfire&buff.burnout.up
 actions.aoe+=/azure_strike,target_if=max:target.health.pct
@@ -2045,11 +2051,11 @@ actions.aoe+=/azure_strike,target_if=max:target.health.pct
 	if TipTheScales:Usable() and Dragonrage:Up() and (Player.enemies <= (3 + (EternitysSpan.known and 3 or 0)) or not FireBreath:Ready()) then
 		UseCooldown(TipTheScales)
 	end
-	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_aoe or not Animosity.known) and (Dragonrage:Up() or ((not PowerSwell.known or PowerSwell:Remains() < self.r1_cast_time) and (not BlazingShards.known or BlazingShards:Remains() < self.r1_cast_time))) then
+	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_aoe or not Animosity.known) and (Dragonrage:Up() or (not PowerSwell.known or PowerSwell:Remains() < self.r1_cast_time)) then
 		local apl = self:fb()
 		if apl then return apl end
 	end
-	if EternitySurge:Usable() and (not Dragonrage.known or Dragonrage:Up() or (self.next_dragonrage > self.dr_prep_time_aoe and (not PowerSwell.known or PowerSwell:Remains() < self.r1_cast_time) and (not BlazingShards.known or BlazingShards:Remains() < self.r1_cast_time))) then
+	if EternitySurge:Usable() and (not Dragonrage.known or Dragonrage:Up() or (self.next_dragonrage > self.dr_prep_time_aoe and (not PowerSwell.known or PowerSwell:Remains() < self.r1_cast_time))) then
 		local apl = self:es()
 		if apl then return apl end
 	end
@@ -2076,9 +2082,6 @@ actions.aoe+=/azure_strike,target_if=max:target.health.pct
 	if LeapingFlames.known and LivingFlame:Usable() and LeapingFlames:Remains() > LivingFlame:CastTime() and EssenceBurst:Down() and Player.essence.deficit >= 2 and (not Burnout.known or Burnout:Up() or ((FireBreath.dot:Down() or FireBreath:Ready(Player.gcd * 2)) and (Player.enemies >= 4 or (ScarletAdaptation:Up() and (AncientFlame:Up() or Dragonrage:Down()))))) then
 		return LivingFlame
 	end
-	if KharnalexTheFirstLight:Usable() and Dragonrage:Down() and ShatteringStar:Down() and Player.enemies <= 5 then
-		UseCooldown(KharnalexTheFirstLight)
-	end
 	if Disintegrate:Usable() and (not Player.moving or Hover:Up()) then
 		Player.channel.interrupt_if = self.channel_interrupt[3]
 		Player.channel.early_chain_if = self.channel_early_chain[3]
@@ -2094,16 +2097,13 @@ end
 
 APL[SPEC.DEVASTATION].st = function(self)
 --[[
-actions.st=use_item,name=kharnalex_the_first_light,if=!buff.dragonrage.up&debuff.shattering_star_debuff.down&raid_event.movement.in>6
-actions.st+=/hover,use_off_gcd=1,if=raid_event.movement.in<2&!buff.hover.up
+actions.st=hover,use_off_gcd=1,if=raid_event.movement.in<2&!buff.hover.up
 actions.st+=/firestorm,if=buff.snapfire.up
 actions.st+=/dragonrage,if=cooldown.fire_breath.remains<4&cooldown.eternity_surge.remains<10&target.time_to_die>=32|fight_remains<30
 actions.st+=/tip_the_scales,if=buff.dragonrage.up&(((!talent.font_of_magic|talent.everburning_flame)&cooldown.fire_breath.up&!cooldown.eternity_surge.up)|(!talent.everburning_flame&talent.font_of_magic&cooldown.eternity_surge.up&!cooldown.fire_breath.up)|buff.dragonrage.remains<variable.r1_cast_time&(cooldown.fire_breath.remains<buff.dragonrage.remains|cooldown.eternity_surge.remains<buff.dragonrage.remains))
-actions.st+=/call_action_list,name=fb,if=set_bonus.tier30_4pc&(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.power_swell.remains<variable.r1_cast_time|buff.bloodlust.up|buff.power_infusion.up)&(buff.blazing_shards.remains<variable.r1_cast_time|buff.dragonrage.up))&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
-actions.st+=/call_action_list,name=fb,if=!set_bonus.tier30_4pc&(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
+actions.st+=/call_action_list,name=fb,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
 actions.st+=/shattering_star,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
-actions.st+=/call_action_list,name=es,if=set_bonus.tier30_4pc&(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.power_swell.remains<variable.r1_cast_time|buff.bloodlust.up|buff.power_infusion.up)&(buff.blazing_shards.remains<variable.r1_cast_time|buff.dragonrage.up))&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
-actions.st+=/call_action_list,name=es,if=!set_bonus.tier30_4pc&(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time&buff.blazing_shards.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
+actions.st+=/call_action_list,name=es,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
 actions.st+=/wait,sec=cooldown.fire_breath.remains,if=talent.animosity&buff.dragonrage.up&buff.dragonrage.remains<gcd.max+variable.r1_cast_time*buff.tip_the_scales.down&buff.dragonrage.remains-cooldown.fire_breath.remains>=variable.r1_cast_time*buff.tip_the_scales.down
 actions.st+=/wait,sec=cooldown.eternity_surge.remains,if=talent.animosity&buff.dragonrage.up&buff.dragonrage.remains<gcd.max+variable.r1_cast_time&buff.dragonrage.remains-cooldown.eternity_surge.remains>variable.r1_cast_time*buff.tip_the_scales.down
 actions.st+=/living_flame,if=buff.dragonrage.up&buff.dragonrage.remains<(buff.essence_burst.max_stack-buff.essence_burst.stack)*gcd.max&buff.burnout.up
@@ -2120,9 +2120,6 @@ actions.st+=/living_flame,if=!buff.dragonrage.up|(buff.iridescence_red.remains>e
 actions.st+=/azure_strike
 actions.st+=/living_flame
 ]]
-	if KharnalexTheFirstLight:Usable() and Dragonrage:Down() and ShatteringStar:Down() then
-		UseCooldown(KharnalexTheFirstLight)
-	end
 	if Snapfire.known and Firestorm:Usable() and Snapfire:Up() then
 		return Firestorm
 	end
@@ -2132,20 +2129,14 @@ actions.st+=/living_flame
 	if TipTheScales:Usable() and Dragonrage:Up() and (((not FontOfMagic.known or EverburningFlame.known) and FireBreath:Ready() and not EternitySurge:Ready()) or (not EverburningFlame.known and FontOfMagic.known and EternitySurge:Ready() and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (FireBreath:Ready(Dragonrage:Remains()) or EternitySurge:Ready(Dragonrage:Remains())))) then
 		UseCooldown(TipTheScales)
 	end
-	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
-		(BlazingShards.known and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
-		(not BlazingShards.known and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
-	) then
+	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time then
 		local apl = self:fb()
 		if apl then return apl end
 	end
 	if ShatteringStar:Usable() and (not ArcaneVigor.known or EssenceBurst:Stack() < EssenceBurst:MaxStack()) then
 		return ShatteringStar
 	end
-	if EternitySurge:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (
-		(BlazingShards.known and ((PowerSwell:Remains() < self.r1_cast_time or Player:BloodlustActive() or PowerInfusion:Up()) and (BlazingShards:Remains() < self.r1_cast_time or Dragonrage:Up()))) or
-		(not BlazingShards.known and ((LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time and BlazingShards:Remains() < self.r1_cast_time))
-	) then
+	if EternitySurge:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time then
 		local apl = self:es()
 		if apl then return apl end
 	end
@@ -2165,8 +2156,8 @@ actions.st+=/living_flame
 		return Pyre
 	end
 	if Disintegrate:Usable() then
-		Player.channel.interrupt_if = self.channel_interrupt[BlazingShards.known and 1 or 2]
-		Player.channel.early_chain_if = self.channel_early_chain[BlazingShards.known and 1 or 2]
+		Player.channel.interrupt_if = self.channel_interrupt[2]
+		Player.channel.early_chain_if = self.channel_early_chain[2]
 		return Disintegrate
 	end
 	if Firestorm:Usable() and ((Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()))) then
@@ -2781,7 +2772,7 @@ function UI:UpdateCombat()
 
 	if Player.main then
 		badDragonPanel.icon:SetTexture(Player.main.icon)
-		Player.main_freecast = (Player.main.mana_cost > 0 and Player.main:ManaCost() == 0) or (Player.main.essence_cost > 0 and Player.main:EssenceCost() == 0) or (Player.main.Free and Player.main:Free())
+		Player.main_freecast = Player.main:Free()
 	end
 	if Player.cd then
 		badDragonCooldownPanel.icon:SetTexture(Player.cd.icon)
@@ -2889,7 +2880,7 @@ CombatEvent.UNIT_DIED = function(event, srcGUID, dstGUID)
 	if not uid or Target.Dummies[uid] then
 		return
 	end
-	trackAuras:Remove(dstGUID)
+	TrackedAuras:Remove(dstGUID)
 	if Opt.auto_aoe then
 		AutoAoe:Remove(dstGUID)
 	end
@@ -2927,7 +2918,7 @@ CombatEvent.SPELL = function(event, srcGUID, dstGUID, spellId, spellName, spellS
 	end
 	local ability = spellId and Abilities.bySpellId[spellId]
 	if not ability then
-		--log(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', event, type(spellName) == 'string' and spellName or 'Unknown', spellId or 0))
+		--log(format('%.3f EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', Player.time, event, type(spellName) == 'string' and spellName or 'Unknown', spellId or 0))
 		return
 	end
 
@@ -3097,10 +3088,6 @@ function Events:PLAYER_EQUIPMENT_CHANGED()
 		end
 	end
 
-	Player.set_bonus.t29 = (Player:Equipped(200378) and 1 or 0) + (Player:Equipped(200380) and 1 or 0) + (Player:Equipped(200381) and 1 or 0) + (Player:Equipped(200382) and 1 or 0) + (Player:Equipped(200383) and 1 or 0)
-	Player.set_bonus.t30 = (Player:Equipped(202486) and 1 or 0) + (Player:Equipped(202487) and 1 or 0) + (Player:Equipped(202488) and 1 or 0) + (Player:Equipped(202489) and 1 or 0) + (Player:Equipped(202491) and 1 or 0)
-	Player.set_bonus.t31 = (Player:Equipped(207225) and 1 or 0) + (Player:Equipped(207226) and 1 or 0) + (Player:Equipped(207227) and 1 or 0) + (Player:Equipped(207228) and 1 or 0) + (Player:Equipped(207230) and 1 or 0)
-	Player.set_bonus.t32 = (Player:Equipped(217176) and 1 or 0) + (Player:Equipped(217177) and 1 or 0) + (Player:Equipped(217178) and 1 or 0) + (Player:Equipped(217179) and 1 or 0) + (Player:Equipped(217180) and 1 or 0)
 	Player.set_bonus.t33 = (Player:Equipped(212027) and 1 or 0) + (Player:Equipped(212028) and 1 or 0) + (Player:Equipped(212029) and 1 or 0) + (Player:Equipped(212030) and 1 or 0) + (Player:Equipped(212032) and 1 or 0)
 
 	Player:UpdateKnown()
