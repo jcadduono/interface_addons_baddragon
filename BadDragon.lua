@@ -1113,7 +1113,7 @@ EternitySurge.max_empower = 3
 EternitySurge:AutoAoe()
 local EternitysSpan = Ability:Add(375757, true, true)
 local EventHorizon = Ability:Add(411164, false, true)
-local EverburningFlame = Ability:Add(370819, true, true)
+local ScorchingEmbers = Ability:Add(370819, true, true)
 local EyeOfInfinity = Ability:Add(411165, false, true)
 local FeedTheFlames = Ability:Add(369846, true, true, 405874)
 FeedTheFlames.buff_duration = 120
@@ -2207,7 +2207,7 @@ APL[SPEC.DEVASTATION].st = function(self)
 actions.st=hover,use_off_gcd=1,if=raid_event.movement.in<2&!buff.hover.up
 actions.st+=/firestorm,if=buff.snapfire.up
 actions.st+=/dragonrage,if=cooldown.fire_breath.remains<4&cooldown.eternity_surge.remains<10&target.time_to_die>=32|fight_remains<30
-actions.st+=/tip_the_scales,if=buff.dragonrage.up&(((!talent.font_of_magic|talent.everburning_flame)&cooldown.fire_breath.up&!cooldown.eternity_surge.up)|(!talent.everburning_flame&talent.font_of_magic&cooldown.eternity_surge.up&!cooldown.fire_breath.up)|buff.dragonrage.remains<variable.r1_cast_time&(cooldown.fire_breath.remains<buff.dragonrage.remains|cooldown.eternity_surge.remains<buff.dragonrage.remains))
+actions.st+=/tip_the_scales,if=buff.dragonrage.up&(((!talent.font_of_magic|talent.scorching_embers)&cooldown.fire_breath.up&!cooldown.eternity_surge.up)|(!talent.scorching_embers&talent.font_of_magic&cooldown.eternity_surge.up&!cooldown.fire_breath.up)|buff.dragonrage.remains<variable.r1_cast_time&(cooldown.fire_breath.remains<buff.dragonrage.remains|cooldown.eternity_surge.remains<buff.dragonrage.remains))
 actions.st+=/call_action_list,name=fb,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
 actions.st+=/shattering_star,if=buff.essence_burst.stack<buff.essence_burst.max_stack|!talent.arcane_vigor
 actions.st+=/call_action_list,name=es,if=(!talent.dragonrage|variable.next_dragonrage>variable.dr_prep_time_st|!talent.animosity)&((buff.limitless_potential.remains<variable.r1_cast_time|!buff.power_infusion.up)&buff.power_swell.remains<variable.r1_cast_time)&(active_enemies>=2|target.time_to_die>=8|fight_remains<30)
@@ -2227,13 +2227,16 @@ actions.st+=/living_flame,if=!buff.dragonrage.up|(buff.iridescence_red.remains>e
 actions.st+=/azure_strike
 actions.st+=/living_flame
 ]]
+	if Maneuverability.known and MeltArmor.known and DeepBreath:Usable() then
+		UseCooldown(DeepBreath)
+	end
 	if Snapfire.known and Firestorm:Usable() and Snapfire:Up() then
 		return Firestorm
 	end
 	if Dragonrage:Usable() and Dragonrage:Down() and ((FireBreath:Ready(4) and EternitySurge:Ready(10) and Target.timeToDie >= 32) or (Target.boss and Target.timeToDie < 30)) then
 		UseCooldown(Dragonrage)
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and (((not FontOfMagic.known or EverburningFlame.known) and FireBreath:Ready() and not EternitySurge:Ready()) or (not EverburningFlame.known and FontOfMagic.known and EternitySurge:Ready() and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (FireBreath:Ready(Dragonrage:Remains()) or EternitySurge:Ready(Dragonrage:Remains())))) then
+	if TipTheScales:Usable() and Dragonrage:Up() and (((not FontOfMagic.known or ScorchingEmbers.known) and FireBreath:Ready() and not EternitySurge:Ready()) or (not ScorchingEmbers.known and FontOfMagic.known and EternitySurge:Ready() and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (FireBreath:Ready(Dragonrage:Remains()) or EternitySurge:Ready(Dragonrage:Remains())))) then
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time then
@@ -2316,17 +2319,29 @@ APL[SPEC.DEVASTATION].channel_early_chain = {
 
 APL[SPEC.DEVASTATION].es = function(self)
 --[[
-actions.es=eternity_surge,empower_to=1,if=active_enemies<=1+talent.eternitys_span|buff.dragonrage.remains<1.75*spell_haste&buff.dragonrage.remains>=1*spell_haste|buff.dragonrage.up&(active_enemies==5|!talent.eternitys_span&active_enemies>=6|talent.eternitys_span&active_enemies>=8)
-actions.es+=/eternity_surge,empower_to=2,if=active_enemies<=2+2*talent.eternitys_span|buff.dragonrage.remains<2.5*spell_haste&buff.dragonrage.remains>=1.75*spell_haste
-actions.es+=/eternity_surge,empower_to=3,if=active_enemies<=3+3*talent.eternitys_span|!talent.font_of_magic|buff.dragonrage.remains<=3.25*spell_haste&buff.dragonrage.remains>=2.5*spell_haste
-actions.es+=/eternity_surge,empower_to=4
+actions.es=eternity_surge,empower_to=1,target_if=max:target.health.pct,if=active_enemies<=1+talent.eternitys_span|buff.dragonrage.remains<1.75*spell_haste&buff.dragonrage.remains>=1*spell_haste|buff.dragonrage.up&(active_enemies>(3+talent.font_of_magic)*(1+talent.eternitys_span))|active_enemies>=6&!talent.eternitys_span
+actions.es+=/eternity_surge,empower_to=2,target_if=max:target.health.pct,if=active_enemies<=2+2*talent.eternitys_span|buff.dragonrage.remains<2.5*spell_haste&buff.dragonrage.remains>=1.75*spell_haste
+actions.es+=/eternity_surge,empower_to=3,target_if=max:target.health.pct,if=active_enemies<=3+3*talent.eternitys_span|!talent.font_of_magic|buff.dragonrage.remains<=3.25*spell_haste&buff.dragonrage.remains>=2.5*spell_haste
+actions.es+=/eternity_surge,empower_to=4,target_if=max:target.health.pct
 ]]
 	if EternitySurge:Usable() then
-		if Player.enemies <= (1 + (EternitysSpan.known and 1 or 0)) or between(Dragonrage:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) then
+		if (
+			Player.enemies <= (EternitysSpan.known and 2 or 1) or
+			between(Dragonrage:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) or
+			(Dragonrage:Up() and Player.enemies > ((FontOfMagic.known and 4 or 3) * (EternitysSpan.known and 2 or 1))) or
+			(not EternitysSpan.known and Player.enemies >= 6)
+		) then
 			EternitySurge.empower_to = 1
-		elseif Player.enemies <= (2 + (EternitysSpan.known and 2 or 0)) or between(Dragonrage:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor) then
+		elseif (
+			Player.enemies <= (EternitysSpan.known and 4 or 2) or
+			between(Dragonrage:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor)
+		) then
 			EternitySurge.empower_to = 2
-		elseif not FontOfMagic.known or Player.enemies <= (3 + (EternitysSpan.known and 3 or 0)) or between(Dragonrage:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor) then
+		elseif (
+			not FontOfMagic.known or
+			Player.enemies <= (EternitysSpan.known and 6 or 3) or
+			between(Dragonrage:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor)
+		) then
 			EternitySurge.empower_to = 3
 		else
 			EternitySurge.empower_to = 4
@@ -2341,17 +2356,29 @@ end
 
 APL[SPEC.DEVASTATION].fb = function(self)
 --[[
-actions.fb=fire_breath,empower_to=1,if=(buff.dragonrage.up&active_enemies<=2)|(active_enemies=1&!talent.everburning_flame)|(buff.dragonrage.remains<1.75*spell_haste&buff.dragonrage.remains>=1*spell_haste)
-actions.fb+=/fire_breath,empower_to=2,if=(!debuff.in_firestorm.up&talent.everburning_flame&active_enemies<=3)|(active_enemies=2&!talent.everburning_flame)|(buff.dragonrage.remains<2.5*spell_haste&buff.dragonrage.remains>=1.75*spell_haste)
-actions.fb+=/fire_breath,empower_to=3,if=!talent.font_of_magic|(debuff.in_firestorm.up&talent.everburning_flame&active_enemies<=3)|(buff.dragonrage.remains<=3.25*spell_haste&buff.dragonrage.remains>=2.5*spell_haste)
-actions.fb+=/fire_breath,empower_to=4
+actions.fb=fire_breath,empower_to=1,target_if=max:target.health.pct,if=(buff.dragonrage.remains<1.75*spell_haste&buff.dragonrage.remains>=1*spell_haste)|active_enemies=1|talent.scorching_embers&!dot.fire_breath_damage.ticking
+actions.fb+=/fire_breath,empower_to=2,target_if=max:target.health.pct,if=active_enemies=2|(buff.dragonrage.remains<2.5*spell_haste&buff.dragonrage.remains>=1.75*spell_haste)|talent.scorching_embers
+actions.fb+=/fire_breath,empower_to=3,target_if=max:target.health.pct,if=!talent.font_of_magic|(buff.dragonrage.remains<=3.25*spell_haste&buff.dragonrage.remains>=2.5*spell_haste)|talent.scorching_embers
+actions.fb+=/fire_breath,empower_to=4,target_if=max:target.health.pct
 ]]
 	if FireBreath:Usable() then
-		if (Player.enemies <= 2 and Dragonrage:Up()) or (not EverburningFlame.known and Player.enemies <= 1) or between(Dragonrage:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) then
+		if (
+			Player.enemies == 1 or
+			(ScorchingEmbers.known and FireBreath.dot:Down()) or
+			between(Dragonrage:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor)
+		) then
 			FireBreath.empower_to = 1
-		elseif (EverburningFlame.known and Player.enemies <= 3 and Firestorm:Down()) or (not EverburningFlame.known and Player.enemies == 2) or between(Dragonrage:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor) then
+		elseif (
+			Player.enemies == 2 or
+			ScorchingEmbers.known or
+			between(Dragonrage:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor)
+		) then
 			FireBreath.empower_to = 2
-		elseif not FontOfMagic.known or (EverburningFlame.known and Player.enemies <= 3 and Firestorm:Up()) or between(Dragonrage:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor) then
+		elseif (
+			not FontOfMagic.known or
+			ScorchingEmbers.known or
+			between(Dragonrage:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor)
+		) then
 			FireBreath.empower_to = 3
 		else
 			FireBreath.empower_to = 4
