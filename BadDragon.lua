@@ -1660,7 +1660,7 @@ function Player:Update()
 		self.channel.ticks_remain = (self.channel.ends - self.ctime) / self.channel.tick_interval
 	end
 	if self.empower.ability then
-		self.empower.rank = floor(clamp((self.ctime - self.empower.start - (0.250 * self.empower.haste_factor)) / (0.750 * self.empower.haste_factor), 0, self.empower.ability:MaxEmpower()))
+		self.empower.rank = self.empower:CalculateRank()
 	end
 	self.mana.regen = GetPowerRegenForPowerType(0)
 	self.mana.current = UnitPower('player', 0) + (self.mana.regen * self.execute_remains)
@@ -1722,6 +1722,11 @@ function Player:Init()
 	_, self.instance = IsInInstance()
 	Events:GROUP_ROSTER_UPDATE()
 	Events:PLAYER_SPECIALIZATION_CHANGED('player')
+end
+
+function Player.empower:CalculateRank()
+	local ctime = GetTime()
+	return floor(clamp((ctime - self.start - (0.250 * self.haste_factor)) / (0.750 * self.haste_factor), 0, self.ability:MaxEmpower()))
 end
 
 -- End Player Functions
@@ -3029,15 +3034,14 @@ function UI:UpdateDisplay()
 	end
 	if empower.ability then
 		dim = Opt.dimmer
-		local ctime = GetTime()
-		empower.rank = floor(clamp((ctime - empower.start - (0.250 * empower.haste_factor)) / (0.750 * empower.haste_factor), 0, empower.ability:MaxEmpower()))
+		local rank = empower:CalculateRank()
 		if empower.ability.empower_to then
 			text_center = format('RANK %d', empower.ability.empower_to)
-			if empower.rank >= empower.ability.empower_to then
+			if rank >= empower.ability.empower_to then
 				text_center = '|cFF00FF00' .. text_center
 				dim = false
 			end
-		elseif empower.rank >= 1 then
+		elseif rank >= 1 then
 			dim = false
 		end
 	elseif channel.ability and not channel.ability.ignore_channel and channel.tick_count > 0 then
