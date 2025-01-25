@@ -1107,6 +1107,8 @@ Dragonrage.cooldown_duration = 120
 Dragonrage.buff_duration = 14
 Dragonrage.color = 'red'
 Dragonrage.triggers_combat = true
+Dragonrage.remains = 0
+Dragonrage.active = false
 local EngulfingBlaze = Ability:Add(370837, true, true)
 local EssenceAttunement = Ability:Add(375722, true, true)
 local EternitySurge = Ability:Add(359073, false, true, 359077)
@@ -1687,7 +1689,12 @@ function Player:Update()
 		AutoAoe:Purge()
 	end
 
-	self.mass_up = MassDisintegrate.known and MassDisintegrate:Up()
+	Dragonrage.remains = (Dragonrage.known and Dragonrage:Remains()) or 0
+	Dragonrage.active = Dragonrage.remains > 0
+	self.mass_up = (
+		(MassDisintegrate.known and MassDisintegrate:Up()) or
+		(MassEruption.known and MassEruption:Up())
+	)
 
 	self.main = APL[self.spec]:Main()
 
@@ -1826,7 +1833,7 @@ function Ability:MaxEmpower()
 end
 
 function EssenceBurstDevastation:Remains()
-	if Dragonrage.known and LivingFlame:Casting() and Dragonrage:Up() then
+	if Dragonrage.known and LivingFlame:Casting() and Dragonrage.active then
 		return self:Duration()
 	end
 	return Ability.Remains(self)
@@ -1834,7 +1841,7 @@ end
 
 function EssenceBurstDevastation:Stack()
 	local stack = Ability.Stack(self)
-	if Dragonrage.known and LivingFlame:Casting() and Dragonrage:Up() then
+	if Dragonrage.known and LivingFlame:Casting() and Dragonrage.active then
 		stack = stack + 1
 		if LeapingFlames.known then
 			stack = stack + min(Player.enemies - 1, Ability.Stack(LeapingFlames))
@@ -2041,10 +2048,10 @@ actions.precombat+=/living_flame,if=!talent.firestorm|talent.engulf&talent.ruby_
 		if ScarletAdaptation.known and VerdantEmbrace:Usable() and AncientFlame:Down() then
 			UseExtra(VerdanceEmbrace)
 		end
-		if Firestorm:Usable() and (not Engulf.known or not RubyEmbers.known) and Dragonrage:Down() then
+		if Firestorm:Usable() and (not Engulf.known or not RubyEmbers.known) and not Dragonrage.active then
 			return Firestorm
 		end
-		if Target.boss and LivingFlame:Usable() and (not Firestorm.known or (Engulf.known and RubyEmbers.known)) and Dragonrage:Down() then
+		if Target.boss and LivingFlame:Usable() and (not Firestorm.known or (Engulf.known and RubyEmbers.known)) and not Dragonrage.active then
 			return LivingFlame
 		end
 	else
@@ -2142,10 +2149,10 @@ actions.aoe+=/azure_strike,target_if=max:target.health.pct
 	if Maneuverability.known and MeltArmor.known and DeepBreath:Usable() then
 		UseCooldown(DeepBreath)
 	end
-	if self.use_dragonrage and Dragonrage:Usable() and Dragonrage:Down() and (not Maneuverability.known or not MeltArmor.known or not DeepBreath:Ready()) then
+	if self.use_dragonrage and Dragonrage:Usable() and not Dragonrage.active and (not Maneuverability.known or not MeltArmor.known or not DeepBreath:Ready()) then
 		UseCooldown(Dragonrage)
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and ((not Engulf.known and Player.enemies <= (3 + (EternitysSpan.known and 3 or 0))) or not FireBreath:Ready()) then
+	if TipTheScales:Usable() and Dragonrage.active and ((not Engulf.known and Player.enemies <= (3 + (EternitysSpan.known and 3 or 0))) or not FireBreath:Ready()) then
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() and (not Dragonrage.known or not self.use_dragonrage or not Animosity.known or not Dragonrage:Ready(self.dr_prep_time_aoe)) and (Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) then
@@ -2156,7 +2163,7 @@ actions.aoe+=/azure_strike,target_if=max:target.health.pct
 		local apl = self:es()
 		if apl then return apl end
 	end
-	if DeepBreath:Usable() and Dragonrage:Down() and Player.essence.deficit > 3 then
+	if DeepBreath:Usable() and not Dragonrage.active and Player.essence.deficit > 3 then
 		UseCooldown(DeepBreath)
 	end
 	if ShatteringStar:Usable() and (not ArcaneVigor.known or EssenceBurst:Stack() < EssenceBurst:MaxStack()) then
@@ -2197,7 +2204,7 @@ actions.aoe+=/azure_strike,target_if=max:target.health.pct
 	if Firestorm:Usable() then
 		return Firestorm
 	end
-	if AncientFlame.known and AncientFlame:Down() and Dragonrage:Down() then
+	if AncientFlame.known and AncientFlame:Down() and not Dragonrage.active then
 		self:green()
 	end
 	if AzureStrike:Usable() then
@@ -2249,10 +2256,10 @@ actions.st+=/living_flame
 	if Snapfire.known and Firestorm:Usable() and Snapfire:Up() then
 		return Firestorm
 	end
-	if Dragonrage:Usable() and Dragonrage:Down() and ((FireBreath:Ready(4) and EternitySurge:Ready(10) and Target.timeToDie >= 32) or (Target.boss and Target.timeToDie < 30)) then
+	if Dragonrage:Usable() and not Dragonrage.active and ((FireBreath:Ready(4) and EternitySurge:Ready(10) and Target.timeToDie >= 32) or (Target.boss and Target.timeToDie < 30)) then
 		UseCooldown(Dragonrage)
 	end
-	if TipTheScales:Usable() and Dragonrage:Up() and (((not FontOfMagic.known or ScorchingEmbers.known) and FireBreath:Ready() and not EternitySurge:Ready()) or (not ScorchingEmbers.known and FontOfMagic.known and EternitySurge:Ready() and not FireBreath:Ready()) or (Dragonrage:Remains() < self.r1_cast_time and (FireBreath:Ready(Dragonrage:Remains()) or EternitySurge:Ready(Dragonrage:Remains())))) then
+	if TipTheScales:Usable() and Dragonrage.active and (((not FontOfMagic.known or ScorchingEmbers.known) and FireBreath:Ready() and not EternitySurge:Ready()) or (not ScorchingEmbers.known and FontOfMagic.known and EternitySurge:Ready() and not FireBreath:Ready()) or (Dragonrage.remains < self.r1_cast_time and (FireBreath:Ready(Dragonrage.remains) or EternitySurge:Ready(Dragonrage.remains)))) then
 		UseCooldown(TipTheScales)
 	end
 	if FireBreath:Usable() and (not Dragonrage.known or self.next_dragonrage > self.dr_prep_time_st or not Animosity.known) and (Player.enemies >= 2 or Target.timeToDie >= 8 or (Target.boss and Target.timeToDie < 30)) and (LimitlessPotential:Remains() < self.r1_cast_time or PowerInfusion:Down()) and PowerSwell:Remains() < self.r1_cast_time then
@@ -2266,16 +2273,16 @@ actions.st+=/living_flame
 		local apl = self:es()
 		if apl then return apl end
 	end
-	if Animosity.known and Dragonrage:Up() and Dragonrage:Remains() < (Player.gcd + self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) and (Dragonrage:Remains() - FireBreath:Cooldown()) >= (self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) then
+	if Animosity.known and Dragonrage.active and Dragonrage.remains < (Player.gcd + self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) and (Dragonrage.remains - FireBreath:Cooldown()) >= (self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) then
 		return WaitFor(FireBreath)
 	end
-	if Animosity.known and Dragonrage:Up() and Dragonrage:Remains() < (Player.gcd + self.r1_cast_time) and (Dragonrage:Remains() - EternitySurge:Cooldown()) >= (self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) then
+	if Animosity.known and Dragonrage.active and Dragonrage.remains < (Player.gcd + self.r1_cast_time) and (Dragonrage.remains - EternitySurge:Cooldown()) >= (self.r1_cast_time * (TipTheScales:Down() and 1 or 0)) then
 		return WaitFor(EternitySurge)
 	end
-	if Burnout.known and LivingFlame:Usable() and Burnout:Up() and Dragonrage:Up() and Dragonrage:Remains() < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
+	if Burnout.known and LivingFlame:Usable() and Burnout:Up() and Dragonrage.active and Dragonrage.remains < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
 		return LivingFlame
 	end
-	if AzureStrike:Usable() and Dragonrage:Up() and Dragonrage:Remains() < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
+	if AzureStrike:Usable() and Dragonrage.active and Dragonrage.remains < ((EssenceBurst:MaxStack() - EssenceBurst:Stack()) * Player.gcd) then
 		return AzureStrike
 	end
 	if Disintegrate:Usable() then
@@ -2283,16 +2290,16 @@ actions.st+=/living_flame
 		Player.channel.early_chain_if = self.channel_early_chain[2]
 		return Disintegrate
 	end
-	if Firestorm:Usable() and ((Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()))) then
+	if Firestorm:Usable() and ((not Dragonrage.active and (not ShatteringStar.known or ShatteringStar:Down()))) then
 		return Firestorm
 	end
-	if DeepBreath:Usable() and Player.enemies > 1 and Dragonrage:Down() and (not ShatteringStar.known or ShatteringStar:Down()) then
+	if DeepBreath:Usable() and Player.enemies > 1 and not Dragonrage.active and (not ShatteringStar.known or ShatteringStar:Down()) then
 		UseCooldown(DeepBreath)
 	end
-	if AncientFlame.known and ScarletAdaptation.known and VerdantEmbrace:Usable() and Dragonrage:Down() and AncientFlame:Down() then
+	if AncientFlame.known and ScarletAdaptation.known and VerdantEmbrace:Usable() and not Dragonrage.active and AncientFlame:Down() then
 		UseExtra(VerdantEmbrace)
 	end
-	if LivingFlame:Usable() and (Dragonrage:Down() or (Player.enemies <= 1 and (Iridescence.red:Remains() > LivingFlame:CastTime() or (ScarletAdaptation:Up() and AncientFlame:Up()) or Iridescence.blue:Up()))) then
+	if LivingFlame:Usable() and (not Dragonrage.active or (Player.enemies <= 1 and (Iridescence.red:Remains() > LivingFlame:CastTime() or (ScarletAdaptation:Up() and AncientFlame:Up()) or Iridescence.blue:Up()))) then
 		return LivingFlame
 	end
 	if AzureStrike:Usable() then
@@ -2306,30 +2313,30 @@ end
 APL[SPEC.DEVASTATION].channel_interrupt = {
 	[1] = function() -- Disintegrate (st with Blazing Shards)
 		--interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(!(buff.power_infusion.up&buff.bloodlust.up)|cooldown.fire_breath.up|cooldown.eternity_surge.up)&(raid_event.movement.in>2|buff.hover.up)
-		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage:Up() and (not (PowerInfusion:Up() and Player:BloodlustActive()) or FireBreath:Ready() or EternitySurge:Ready())
+		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage.active and (not (PowerInfusion:Up() and Player:BloodlustActive()) or FireBreath:Ready() or EternitySurge:Ready())
 	end,
 	[2] = function() -- Disintegrate (st without Blazing Shards)
 		--interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
-		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage:Up()
+		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage.active
 	end,
 	[3] = function() -- Disintegrate (aoe)
 		--interrupt_if=evoker.use_clipping&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
-		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage:Up()
+		return Opt.use_clipping and Player.channel.ticks >= 2 and Dragonrage.active
 	end,
 }
 
 APL[SPEC.DEVASTATION].channel_early_chain = {
 	[1] = function() -- Disintegrate (st with Blazing Shards)
 		--early_chain_if=evoker.use_early_chaining&ticks>=2&buff.dragonrage.up&!(buff.power_infusion.up&buff.bloodlust.up)&(raid_event.movement.in>2|buff.hover.up)
-		return Opt.use_early_chaining and Player.channel.ticks >= 2 and Dragonrage:Up() and not (PowerInfusion:Up() and Player:BloodlustActive())
+		return Opt.use_early_chaining and Player.channel.ticks >= 2 and Dragonrage.active and not (PowerInfusion:Up() and Player:BloodlustActive())
 	end,
 	[2] = function() -- Disintegrate (st without Blazing Shards)
 		--evoker.use_early_chaining&buff.dragonrage.up&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
-		return Opt.use_early_chaining and Player.channel.ticks >= 2 and Dragonrage:Up()
+		return Opt.use_early_chaining and Player.channel.ticks >= 2 and Dragonrage.active
 	end,
 	[3] = function() -- Disintegrate (aoe)
 		--early_chain_if=evoker.use_early_chaining&(buff.dragonrage.up|essence.deficit<=1)&ticks>=2&(raid_event.movement.in>2|buff.hover.up)
-		return Opt.use_early_chaining and Player.channel.ticks >= 2 and (Dragonrage:Up() or Player.essence.deficit <= 1)
+		return Opt.use_early_chaining and Player.channel.ticks >= 2 and (Dragonrage.active or Player.essence.deficit <= 1)
 	end,
 }
 
@@ -2343,26 +2350,26 @@ actions.es+=/eternity_surge,empower_to=4,target_if=max:target.health.pct
 	if EternitySurge:Usable() then
 		if (
 			Player.enemies <= (EternitysSpan.known and 2 or 1) or
-			between(Dragonrage:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor) or
-			(Dragonrage:Up() and Player.enemies > ((FontOfMagic.known and 4 or 3) * (EternitysSpan.known and 2 or 1))) or
+			between(Dragonrage.remains, 1 * Player.haste_factor, 1.75 * Player.haste_factor) or
+			(Dragonrage.active and Player.enemies > ((FontOfMagic.known and 4 or 3) * (EternitysSpan.known and 2 or 1))) or
 			(not EternitysSpan.known and Player.enemies >= 6)
 		) then
 			EternitySurge.empower_to = 1
 		elseif (
 			Player.enemies <= (EternitysSpan.known and 4 or 2) or
-			between(Dragonrage:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor)
+			between(Dragonrage.remains, 1.75 * Player.haste_factor, 2.5 * Player.haste_factor)
 		) then
 			EternitySurge.empower_to = 2
 		elseif (
 			not FontOfMagic.known or
 			Player.enemies <= (EternitysSpan.known and 6 or 3) or
-			between(Dragonrage:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor)
+			between(Dragonrage.remains, 2.5 * Player.haste_factor, 3.25 * Player.haste_factor)
 		) then
 			EternitySurge.empower_to = 3
 		else
 			EternitySurge.empower_to = 4
 		end
-		if Dragonrage:Up() then
+		if Dragonrage.active then
 			return EternitySurge
 		else
 			UseCooldown(EternitySurge)
@@ -2381,25 +2388,25 @@ actions.fb+=/fire_breath,empower_to=4,target_if=max:target.health.pct
 		if (
 			Player.enemies == 1 or
 			(ScorchingEmbers.known and FireBreath.dot:Down()) or
-			between(Dragonrage:Remains(), 1 * Player.haste_factor, 1.75 * Player.haste_factor)
+			between(Dragonrage.remains, 1 * Player.haste_factor, 1.75 * Player.haste_factor)
 		) then
 			FireBreath.empower_to = 1
 		elseif (
 			Player.enemies == 2 or
 			ScorchingEmbers.known or
-			between(Dragonrage:Remains(), 1.75 * Player.haste_factor, 2.5 * Player.haste_factor)
+			between(Dragonrage.remains, 1.75 * Player.haste_factor, 2.5 * Player.haste_factor)
 		) then
 			FireBreath.empower_to = 2
 		elseif (
 			not FontOfMagic.known or
 			ScorchingEmbers.known or
-			between(Dragonrage:Remains(), 2.5 * Player.haste_factor, 3.25 * Player.haste_factor)
+			between(Dragonrage.remains, 2.5 * Player.haste_factor, 3.25 * Player.haste_factor)
 		) then
 			FireBreath.empower_to = 3
 		else
 			FireBreath.empower_to = 4
 		end
-		if Dragonrage:Up() then
+		if Dragonrage.active then
 			return FireBreath
 		else
 			UseCooldown(FireBreath)
@@ -2961,7 +2968,7 @@ end
 
 function UI:UpdateDisplay()
 	Timer.display = 0
-	local border, dim, dim_cd, text_center, text_tr, text_cd_center, text_cd_tr
+	local border, dim, dim_cd, text_center, text_tr, text_bl, text_cd_center, text_cd_tr
 	local channel = Player.channel
 	local empower = Player.empower
 
@@ -2981,7 +2988,10 @@ function UI:UpdateDisplay()
 			if react > 0 then
 				text_center = format('%.1f', react)
 			end
-		elseif MassDisintegrate.known and Player.mass_up and Player.main == Disintegrate then
+		elseif Player.mass_up and (
+			Player.main == Disintegrate or
+			Player.main == Eruption
+		) then
 			text_center = 'MASS'
 		end
 		if Player.main_freecast then
@@ -3046,6 +3056,9 @@ function UI:UpdateDisplay()
 				dim = false
 			end
 		end
+	end
+	if Dragonrage.active then
+		text_bl = format('%.1fs', Dragonrage.remains)
 	end
 	if border ~= badDragonPanel.border.overlay then
 		badDragonPanel.border.overlay = border
